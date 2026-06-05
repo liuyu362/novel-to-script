@@ -601,6 +601,124 @@
             margin-bottom: 10px;
             color: var(--text);
         }
+
+        /* ── Detect Page ── */
+        .detect-summary {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .detect-stat {
+            flex: 1;
+            text-align: center;
+            padding: 14px 8px;
+            border-radius: var(--radius-sm);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+        }
+        .detect-stat .stat-num { font-size: 28px; font-weight: 700; }
+        .detect-stat .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .detect-stat.critical-stat { border-color: var(--danger); }
+        .detect-stat.critical-stat .stat-num { color: var(--danger); }
+        .detect-stat.warning-stat { border-color: var(--warning); }
+        .detect-stat.warning-stat .stat-num { color: var(--warning); }
+        .detect-stat.info-stat { border-color: var(--primary); }
+        .detect-stat.info-stat .stat-num { color: var(--primary); }
+        .detect-stat.pass-stat { border-color: var(--success); }
+        .detect-stat.pass-stat .stat-num { color: var(--success); }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .filter-tab {
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            font-size: 12px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .filter-tab:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-tab.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .type-label {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-right: 6px;
+            text-transform: uppercase;
+        }
+        .type-character { background: #ede9fe; color: #7c3aed; }
+        .type-scene { background: #e0f2fe; color: #0284c7; }
+        .type-timeline { background: #fef3c7; color: #d97706; }
+        .type-plot_hole { background: #ffe4e6; color: #e11d48; }
+
+        .severity-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        .severity-critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .severity-warning { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+        .severity-info { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+
+        .issue-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--border);
+        }
+        .issue-card.critical-issue { border-left-color: var(--danger); }
+        .issue-card.warning-issue { border-left-color: var(--warning); }
+        .issue-card.info-issue { border-left-color: var(--primary); }
+
+        .issue-card .issue-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .issue-card .issue-desc {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 6px;
+        }
+        .issue-card .issue-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .issue-card .issue-suggestion {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: var(--primary-light);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .issue-card .issue-suggestion::before {
+            content: '建议: ';
+            font-weight: 600;
+            color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -778,12 +896,54 @@
     </section>
 
     <section class="page" id="page-detect">
-        <div class="card">
-            <h3>逻辑矛盾检测</h3>
+        <div id="detectEmpty" class="card">
             <div class="placeholder">
                 <div class="line"></div>
-                <p>检测剧本中的逻辑矛盾（角色消失、时间跳跃等）</p>
-                <p style="margin-top:8px;font-size:12px">PR19 实现</p>
+                <p>请先完成前面三步（上传解读 → 角色场景 → 剧本改编）</p>
+                <p style="margin-top:8px;font-size:12px">剧本数据将自动带入此页面</p>
+            </div>
+        </div>
+        <div id="detectContent" class="hidden">
+            <!-- 状态说明 -->
+            <div class="card">
+                <div class="adapt-section-title">逻辑检测</div>
+                <p style="font-size:13px;color:var(--text-secondary);margin:0">
+                    检测剧本中的角色一致性、场景连续性、时间线和情节漏洞四类逻辑问题。
+                    以小说原文为基准，对比剧本进行交叉验证。
+                </p>
+            </div>
+
+            <!-- 检测按钮 -->
+            <div style="text-align:center;margin-top:16px">
+                <button class="btn btn-primary" id="btnDetect" onclick="startDetect()">
+                    开始检测
+                </button>
+            </div>
+
+            <!-- 结果面板 -->
+            <div class="card hidden" id="detectResultPanel" style="margin-top:16px">
+                <div class="adapt-section-title">检测结果</div>
+
+                <!-- 统计概览 -->
+                <div class="detect-summary" id="detectSummary"></div>
+
+                <!-- 筛选项 -->
+                <div class="filter-tabs" id="filterTabs">
+                    <button class="filter-tab active" data-filter="all" onclick="filterIssues('all')">全部</button>
+                    <button class="filter-tab" data-filter="character_consistency" onclick="filterIssues('character_consistency')">角色一致性</button>
+                    <button class="filter-tab" data-filter="scene_continuity" onclick="filterIssues('scene_continuity')">场景连续性</button>
+                    <button class="filter-tab" data-filter="timeline" onclick="filterIssues('timeline')">时间线</button>
+                    <button class="filter-tab" data-filter="plot_hole" onclick="filterIssues('plot_hole')">情节漏洞</button>
+                </div>
+
+                <!-- 问题列表 -->
+                <div id="issueList"></div>
+
+                <!-- 空结果 -->
+                <div id="detectNoIssues" class="hidden" style="text-align:center;padding:30px">
+                    <p style="color:var(--success);font-size:16px;font-weight:600">未发现逻辑问题</p>
+                    <p style="color:var(--text-secondary);font-size:13px;margin-top:4px">剧本逻辑一致性良好</p>
+                </div>
             </div>
         </div>
     </section>
@@ -1237,6 +1397,8 @@ navigateTo = function(page) {
         }
     } else if (page === 'adapt') {
         loadAdaptData();
+    } else if (page === 'detect') {
+        loadDetectData();
     }
 };
 
@@ -1367,6 +1529,183 @@ function downloadScript() {
     a.download = title + '_' + adaptVersion + '.yaml';
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// ── 逻辑检测 ──
+let detectIssues = [];
+let detectCurrentFilter = 'all';
+
+function loadDetectData() {
+    const scriptRaw = localStorage.getItem('novelScript');
+    const analysisRaw = localStorage.getItem('novelAnalysis');
+
+    if (!scriptRaw || !analysisRaw) {
+        document.getElementById('detectEmpty').classList.remove('hidden');
+        document.getElementById('detectContent').classList.add('hidden');
+        return;
+    }
+
+    document.getElementById('detectEmpty').classList.add('hidden');
+    document.getElementById('detectContent').classList.remove('hidden');
+    document.getElementById('detectResultPanel').classList.add('hidden');
+}
+
+async function startDetect() {
+    const scriptRaw = localStorage.getItem('novelScript');
+    const analysisRaw = localStorage.getItem('novelAnalysis');
+    const rawText = localStorage.getItem('novelRawText');
+    const title = localStorage.getItem('novelTitle') || '';
+
+    if (!scriptRaw || !rawText) {
+        alert('请先完成前面三步（上传解读 → 角色场景 → 剧本改编）');
+        return;
+    }
+
+    let scriptYaml = '';
+    try {
+        const scriptData = JSON.parse(scriptRaw);
+        scriptYaml = scriptData.script?.yaml || '';
+    } catch (e) {
+        alert('剧本数据格式异常，请重新生成剧本');
+        return;
+    }
+
+    if (!scriptYaml) {
+        alert('剧本内容为空，请先生成剧本');
+        return;
+    }
+
+    const btn = document.getElementById('btnDetect');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 检测中...';
+
+    try {
+        const resp = await fetch('/api/check/logic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ script_yaml: scriptYaml, original_text: rawText, title }),
+        });
+        const data = await resp.json();
+
+        if (data.code !== 0) {
+            alert('检测失败: ' + (data.message || '未知错误'));
+            return;
+        }
+
+        renderDetectResult(data.data);
+        markCompleted(4);
+    } catch (err) {
+        alert('请求失败: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '开始检测';
+    }
+}
+
+function renderDetectResult(data) {
+    detectIssues = data.issues || [];
+    detectCurrentFilter = 'all';
+
+    const summary = data.summary || { total: 0, critical: 0, warning: 0, info: 0 };
+
+    // 统计
+    document.getElementById('detectSummary').innerHTML =
+        '<div class="detect-stat ' + (summary.total === 0 ? 'pass-stat' : 'critical-stat') + '">' +
+            '<div class="stat-num">' + summary.total + '</div>' +
+            '<div class="stat-label">总问题数</div>' +
+        '</div>' +
+        '<div class="detect-stat critical-stat">' +
+            '<div class="stat-num">' + summary.critical + '</div>' +
+            '<div class="stat-label">严重</div>' +
+        '</div>' +
+        '<div class="detect-stat warning-stat">' +
+            '<div class="stat-num">' + summary.warning + '</div>' +
+            '<div class="stat-label">警告</div>' +
+        '</div>' +
+        '<div class="detect-stat info-stat">' +
+            '<div class="stat-num">' + summary.info + '</div>' +
+            '<div class="stat-label">提示</div>' +
+        '</div>';
+
+    // 筛选标签恢复
+    document.querySelectorAll('#filterTabs .filter-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.filter === 'all');
+    });
+
+    document.getElementById('detectResultPanel').classList.remove('hidden');
+
+    if (detectIssues.length === 0) {
+        document.getElementById('issueList').innerHTML = '';
+        document.getElementById('detectNoIssues').classList.remove('hidden');
+        document.getElementById('filterTabs').classList.add('hidden');
+    } else {
+        document.getElementById('detectNoIssues').classList.add('hidden');
+        document.getElementById('filterTabs').classList.remove('hidden');
+        renderIssueList(detectIssues);
+    }
+}
+
+const TYPE_NAMES = {
+    character_consistency: '角色一致性',
+    scene_continuity: '场景连续性',
+    timeline: '时间线',
+    plot_hole: '情节漏洞',
+};
+
+const TYPE_CSS = {
+    character_consistency: 'type-character',
+    scene_continuity: 'type-scene',
+    timeline: 'type-timeline',
+    plot_hole: 'type-plot_hole',
+};
+
+const SEVERITY_NAMES = {
+    critical: '严重',
+    warning: '警告',
+    info: '提示',
+};
+
+function renderIssueList(issues) {
+    document.getElementById('issueList').innerHTML = issues.map((iss, i) => {
+        const sevClass = 'severity-' + iss.severity;
+        const typeClass = TYPE_CSS[iss.type] || '';
+        const issueClass = (iss.severity === 'critical' ? 'critical-issue' :
+                           iss.severity === 'warning' ? 'warning-issue' : 'info-issue');
+
+        return '<div class="issue-card ' + issueClass + '">' +
+            '<div class="issue-header">' +
+                '<span class="type-label ' + typeClass + '">' +
+                    esc(TYPE_NAMES[iss.type] || iss.type) +
+                '</span>' +
+                '<span class="severity-badge ' + sevClass + '">' +
+                    esc(SEVERITY_NAMES[iss.severity] || iss.severity) +
+                '</span>' +
+                (iss.scene_ref ? '<span style="font-size:11px;color:var(--text-secondary)">' + esc(iss.scene_ref) + '</span>' : '') +
+            '</div>' +
+            '<div class="issue-desc">' + esc(iss.description) + '</div>' +
+            (iss.involved && iss.involved.length ?
+                '<div class="issue-meta">涉及: ' + iss.involved.map(esc).join(', ') + '</div>' : '') +
+            (iss.suggestion ?
+                '<div class="issue-suggestion">' + esc(iss.suggestion) + '</div>' : '') +
+        '</div>';
+    }).join('');
+}
+
+function filterIssues(filter) {
+    detectCurrentFilter = filter;
+
+    document.querySelectorAll('#filterTabs .filter-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.filter === filter);
+    });
+
+    const filtered = filter === 'all' ? detectIssues :
+        detectIssues.filter(i => i.type === filter);
+
+    if (filtered.length === 0) {
+        document.getElementById('issueList').innerHTML = '<div class="empty-hint">该类别没有问题</div>';
+    } else {
+        renderIssueList(filtered);
+    }
 }
 </script>
 
