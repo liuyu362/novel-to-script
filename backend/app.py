@@ -22,6 +22,7 @@ from backend.version_prompts import (
 )
 from backend.character_extractor import extract_characters
 from backend.scene_extractor import extract_scenes
+from backend.dialogue_separator import extract_dialogue
 
 app = FastAPI(
     title="Novel to Script API",
@@ -244,6 +245,21 @@ class AnalyzeCharactersRequest(BaseModel):
 
 class AnalyzeScenesRequest(BaseModel):
     """场景提取请求体"""
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文内容",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="小说标题（可选）",
+    )
+
+
+class AnalyzeDialogueRequest(BaseModel):
+    """对话分离请求体"""
     text: str = Field(
         ...,
         min_length=50,
@@ -520,6 +536,25 @@ def analyze_scenes(req: AnalyzeScenesRequest):
         "text_length": len(req.text),
         **result,
     }, message=f"场景提取完成，共识别 {result['total']} 个场景")
+
+
+@app.post("/api/analyze/dialogue")
+def analyze_dialogue(req: AnalyzeDialogueRequest):
+    """对白与叙述文本分离
+
+    从小说文本中区分对话（双引号内/角色说话）和叙述性文字，
+    标记每条对话的发言者、语气、引号风格。
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    result = extract_dialogue(req.text)
+
+    return success_response({
+        "title": req.title or "未命名",
+        "text_length": len(req.text),
+        **result,
+    }, message=f"对话分离完成，共 {result['dialogue_count']} 条对话 / {result['narration_count']} 段叙述")
 
 
 if __name__ == "__main__":
