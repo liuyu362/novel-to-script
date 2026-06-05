@@ -21,6 +21,7 @@ from backend.version_prompts import (
     VERSION_NAMES, VALID_VERSIONS,
 )
 from backend.character_extractor import extract_characters
+from backend.scene_extractor import extract_scenes
 
 app = FastAPI(
     title="Novel to Script API",
@@ -228,6 +229,21 @@ class BatchConvertRequest(BaseModel):
 
 class AnalyzeCharactersRequest(BaseModel):
     """角色提取请求体"""
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文内容",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="小说标题（可选）",
+    )
+
+
+class AnalyzeScenesRequest(BaseModel):
+    """场景提取请求体"""
     text: str = Field(
         ...,
         min_length=50,
@@ -485,6 +501,25 @@ def analyze_characters(req: AnalyzeCharactersRequest):
         "text_length": len(req.text),
         **result,
     }, message=f"角色提取完成，共识别 {result['total']} 个角色")
+
+
+@app.post("/api/analyze/scenes")
+def analyze_scenes(req: AnalyzeScenesRequest):
+    """场景列表自动提取
+
+    从小说文本中识别所有场景/地点转换，
+    输出地点、时间、天气、出场角色、关键事件等结构化信息。
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    result = extract_scenes(req.text)
+
+    return success_response({
+        "title": req.title or "未命名",
+        "text_length": len(req.text),
+        **result,
+    }, message=f"场景提取完成，共识别 {result['total']} 个场景")
 
 
 if __name__ == "__main__":
