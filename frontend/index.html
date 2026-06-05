@@ -373,6 +373,152 @@
         .dialogue-table tr:nth-child(even) td { background: var(--bg); }
 
         .hidden { display: none !important; }
+
+        /* ── Management Page ── */
+        .mgmt-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .mgmt-grid { grid-template-columns: 1fr; }
+        }
+        .mgmt-block { min-width: 0; }
+        .mgmt-block .block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .mgmt-block .block-header h3 { margin: 0; }
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .btn-sm:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm.danger { color: var(--danger); }
+        .btn-sm.danger:hover { border-color: var(--danger); background: #fef2f2; }
+        .btn-sm.primary {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .btn-sm.primary:hover { background: var(--primary-hover); }
+
+        .char-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .char-card .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .char-card .card-top .name { font-size: 14px; font-weight: 600; }
+        .char-card .card-top .actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .char-card .card-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .char-card .card-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .scene-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            margin-bottom: 8px;
+        }
+        .scene-card .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .scene-card .scene-num {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .scene-card .scene-body { flex: 1; min-width: 0; }
+        .scene-card .scene-loc { font-size: 14px; font-weight: 600; }
+        .scene-card .scene-info { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .scene-card .scene-chars { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .scene-card .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-box {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .modal-box h3 { margin: 0 0 16px; font-size: 16px; }
+        .modal-box label { margin-top: 12px; }
+        .modal-box label:first-of-type { margin-top: 0; }
+        .modal-box input, .modal-box select, .modal-box textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text);
+            background: var(--bg);
+        }
+        .modal-box textarea { min-height: 60px; resize: vertical; }
+        .modal-box .modal-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .empty-hint {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -458,13 +604,40 @@
     </section>
 
     <section class="page" id="page-characters">
-        <div class="card">
-            <h3>角色与场景确认</h3>
+        <div id="mgmtEmpty" class="card">
             <div class="placeholder">
                 <div class="line"></div>
-                <p>查看 AI 提取的角色和场景清单，并确认或编辑</p>
-                <p style="margin-top:8px;font-size:12px">PR17 实现</p>
+                <p>请先在「上传解读」页上传小说并完成分析</p>
+                <p style="margin-top:8px;font-size:12px">分析结果将自动带入此页面</p>
             </div>
+        </div>
+        <div id="mgmtContent" class="hidden">
+            <div class="mgmt-grid">
+                <!-- 角色列 -->
+                <div class="mgmt-block">
+                    <div class="block-header">
+                        <h3 id="charTitle">角色清单</h3>
+                        <button class="btn-sm primary" onclick="openAddChar()">+ 新增角色</button>
+                    </div>
+                    <div id="charList"></div>
+                </div>
+                <!-- 场景列 -->
+                <div class="mgmt-block">
+                    <div class="block-header">
+                        <h3 id="sceneTitle">场景清单</h3>
+                        <button class="btn-sm primary" onclick="openAddScene()">+ 新增场景</button>
+                    </div>
+                    <div id="sceneListMgmt"></div>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:20px">
+                <button class="btn btn-primary" id="btnConfirmMgmt" onclick="confirmMgmt()">确认清单</button>
+            </div>
+        </div>
+
+        <!-- 编辑模态框 -->
+        <div id="editModal" class="modal-overlay hidden" onclick="if(event.target===this)closeModal()">
+            <div class="modal-box" id="modalBox"></div>
         </div>
     </section>
 
@@ -592,6 +765,7 @@ async function startAnalyze() {
         }
 
         renderResult(data.data);
+        localStorage.setItem('novelAnalysis', JSON.stringify(data.data));
         markCompleted(1);
     } catch (err) {
         alert('请求失败: ' + err.message);
@@ -669,6 +843,273 @@ function esc(str) {
     div.textContent = str;
     return div.innerHTML;
 }
+
+// ── 角色场景管理 ──
+let mgmtChars = [];
+let mgmtScenes = [];
+let mgmtEditing = null;  // { type: 'char'|'scene', index: number }
+
+function loadMgmtData() {
+    const raw = localStorage.getItem('novelAnalysis');
+    if (!raw) return false;
+    try {
+        const d = JSON.parse(raw);
+        mgmtChars = (d.characters?.characters || []).map(c => ({...c}));
+        mgmtScenes = (d.scenes?.scenes || []).map(s => ({...s}));
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function renderMgmtPage() {
+    const hasData = mgmtChars.length > 0 || mgmtScenes.length > 0;
+    document.getElementById('mgmtEmpty').classList.toggle('hidden', hasData);
+    document.getElementById('mgmtContent').classList.toggle('hidden', !hasData);
+    document.getElementById('charTitle').textContent = '角色清单 (' + mgmtChars.length + ')';
+    document.getElementById('sceneTitle').textContent = '场景清单 (' + mgmtScenes.length + ')';
+    renderCharList();
+    renderSceneList();
+}
+
+// ── 角色渲染 ──
+function renderCharList() {
+    const el = document.getElementById('charList');
+    if (mgmtChars.length === 0) {
+        el.innerHTML = '<div class="empty-hint">暂无角色，点击「新增角色」添加</div>';
+        return;
+    }
+    el.innerHTML = mgmtChars.map((c, i) => `<div class="char-card">
+        <div class="card-top">
+            <span class="name">${esc(c.name || '未命名')}
+                <span class="tag ${c.role_type === '主角' ? 'tag-main' : c.role_type === '反派' ? 'tag-villain' : 'tag-support'}">${esc(c.role_type || '配角')}</span>
+            </span>
+            <div class="actions">
+                <button class="btn-sm" onclick="openEditChar(${i})">编辑</button>
+                <button class="btn-sm danger" onclick="deleteChar(${i})">删除</button>
+            </div>
+        </div>
+        <div class="card-meta">${esc(c.gender || '未知')} | ${esc(c.age || '未知')}</div>
+        ${c.description ? '<div class="card-desc">' + esc(c.description) + '</div>' : ''}
+        ${c.aliases && c.aliases.length ? '<div class="card-meta">别名: ' + c.aliases.map(esc).join(', ') + '</div>' : ''}
+    </div>`).join('');
+}
+
+function openEditChar(idx) {
+    mgmtEditing = { type: 'char', index: idx };
+    const c = mgmtChars[idx];
+    buildModal('编辑角色', `
+        <label>姓名</label>
+        <input id="efName" value="${escAttr(c.name || '')}">
+        <label>角色类型</label>
+        <select id="efRole">
+            ${['主角','配角','反派','路人'].map(t => `<option ${c.role_type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <label>性别</label>
+        <select id="efGender">
+            ${['男','女','未知'].map(t => `<option ${c.gender===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <label>年龄</label>
+        <input id="efAge" value="${escAttr(c.age || '')}" placeholder="如 28岁 / 中年">
+        <label>描述</label>
+        <textarea id="efDesc">${esc(c.description || '')}</textarea>
+        <label>别名（逗号分隔）</label>
+        <input id="efAliases" value="${escAttr((c.aliases || []).join(', '))}">
+    `);
+}
+
+function deleteChar(idx) {
+    if (!confirm('确定删除角色「' + (mgmtChars[idx].name || '未命名') + '」？')) return;
+    mgmtChars.splice(idx, 1);
+    renderMgmtPage();
+    saveMgmtData();
+}
+
+// ── 场景渲染 ──
+function renderSceneList() {
+    const el = document.getElementById('sceneListMgmt');
+    if (mgmtScenes.length === 0) {
+        el.innerHTML = '<div class="empty-hint">暂无场景，点击「新增场景」添加</div>';
+        return;
+    }
+    el.innerHTML = mgmtScenes.map((s, i) => `<div class="scene-card">
+        <div class="card-top">
+            <div class="scene-num">${i + 1}</div>
+            <div class="scene-body">
+                <div class="scene-loc">${esc(s.location || '未命名场景')}
+                    <span class="tag tag-support">${esc(s.location_type || '未知')}</span>
+                </div>
+                <div class="scene-info">${esc(s.time_period || '')} | ${esc(s.weather || '')}</div>
+                ${s.description ? '<div class="scene-info">' + esc(s.description) + '</div>' : ''}
+                ${(s.characters_present || []).length ? '<div class="scene-chars">出场: ' + (s.characters_present || []).map(esc).join(', ') + '</div>' : ''}
+            </div>
+            <div class="actions">
+                <button class="btn-sm" onclick="openEditScene(${i})">编辑</button>
+                <button class="btn-sm danger" onclick="deleteScene(${i})">删除</button>
+            </div>
+        </div>
+    </div>`).join('');
+}
+
+function openEditScene(idx) {
+    mgmtEditing = { type: 'scene', index: idx };
+    const s = mgmtScenes[idx];
+    buildModal('编辑场景', `
+        <label>地点名称</label>
+        <input id="efLoc" value="${escAttr(s.location || '')}">
+        <label>地点类型</label>
+        <select id="efLocType">
+            ${['室内','室外','未知'].map(t => `<option ${s.location_type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        <label>时间</label>
+        <input id="efTime" value="${escAttr(s.time_period || '')}" placeholder="如 清晨 / 午夜">
+        <label>天气</label>
+        <input id="efWeather" value="${escAttr(s.weather || '')}" placeholder="如 晴 / 暴雨 / 未知">
+        <label>在场角色（逗号分隔）</label>
+        <input id="efChars" value="${escAttr((s.characters_present || []).join(', '))}">
+        <label>描述</label>
+        <textarea id="efDesc">${esc(s.description || '')}</textarea>
+        <label>关键事件（逗号分隔）</label>
+        <input id="efEvents" value="${escAttr((s.key_events || []).join(', '))}">
+    `);
+}
+
+function deleteScene(idx) {
+    if (!confirm('确定删除场景「' + (mgmtScenes[idx].location || '未命名') + '」？')) return;
+    mgmtScenes.splice(idx, 1);
+    renderMgmtPage();
+    saveMgmtData();
+}
+
+// ── 新增 ──
+function openAddChar() {
+    mgmtEditing = { type: 'char', index: -1 };
+    buildModal('新增角色', `
+        <label>姓名</label>
+        <input id="efName" value="" placeholder="角色姓名">
+        <label>角色类型</label>
+        <select id="efRole">${['主角','配角','反派','路人'].map(t => '<option>' + t + '</option>').join('')}</select>
+        <label>性别</label>
+        <select id="efGender">${['男','女','未知'].map(t => '<option>' + t + '</option>').join('')}</select>
+        <label>年龄</label>
+        <input id="efAge" value="" placeholder="如 28岁 / 中年">
+        <label>描述</label>
+        <textarea id="efDesc"></textarea>
+        <label>别名（逗号分隔）</label>
+        <input id="efAliases" value="">
+    `);
+}
+
+function openAddScene() {
+    mgmtEditing = { type: 'scene', index: -1 };
+    buildModal('新增场景', `
+        <label>地点名称</label>
+        <input id="efLoc" value="" placeholder="场景地点">
+        <label>地点类型</label>
+        <select id="efLocType">${['室内','室外','未知'].map(t => '<option>' + t + '</option>').join('')}</select>
+        <label>时间</label>
+        <input id="efTime" value="" placeholder="如 清晨 / 午夜">
+        <label>天气</label>
+        <input id="efWeather" value="" placeholder="如 晴 / 暴雨 / 未知">
+        <label>在场角色（逗号分隔）</label>
+        <input id="efChars" value="">
+        <label>描述</label>
+        <textarea id="efDesc"></textarea>
+        <label>关键事件（逗号分隔）</label>
+        <input id="efEvents" value="">
+    `);
+}
+
+// ── 模态框 ──
+function buildModal(title, fieldsHtml) {
+    const box = document.getElementById('modalBox');
+    box.innerHTML = '<h3>' + title + '</h3>' + fieldsHtml + `
+        <div class="modal-actions">
+            <button class="btn-sm" onclick="closeModal()">取消</button>
+            <button class="btn-sm primary" onclick="saveModal()">保存</button>
+        </div>`;
+    document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('editModal').classList.add('hidden');
+    mgmtEditing = null;
+}
+
+function saveModal() {
+    if (!mgmtEditing) return;
+
+    if (mgmtEditing.type === 'char') {
+        const obj = {
+            name: document.getElementById('efName').value.trim() || '未命名',
+            role_type: document.getElementById('efRole').value,
+            gender: document.getElementById('efGender').value,
+            age: document.getElementById('efAge').value.trim() || '未知',
+            description: document.getElementById('efDesc').value.trim(),
+            aliases: document.getElementById('efAliases').value.split(',').map(s => s.trim()).filter(Boolean),
+        };
+        if (mgmtEditing.index >= 0) {
+            mgmtChars[mgmtEditing.index] = obj;
+        } else {
+            mgmtChars.push(obj);
+        }
+    } else if (mgmtEditing.type === 'scene') {
+        const obj = {
+            location: document.getElementById('efLoc').value.trim() || '未命名场景',
+            location_type: document.getElementById('efLocType').value,
+            time_period: document.getElementById('efTime').value.trim() || '未知',
+            weather: document.getElementById('efWeather').value.trim() || '未知',
+            characters_present: document.getElementById('efChars').value.split(',').map(s => s.trim()).filter(Boolean),
+            description: document.getElementById('efDesc').value.trim(),
+            key_events: document.getElementById('efEvents').value.split(',').map(s => s.trim()).filter(Boolean),
+        };
+        if (mgmtEditing.index >= 0) {
+            mgmtScenes[mgmtEditing.index] = obj;
+        } else {
+            mgmtScenes.push(obj);
+        }
+    }
+
+    closeModal();
+    renderMgmtPage();
+    saveMgmtData();
+}
+
+// ── 持久化 ──
+function saveMgmtData() {
+    const raw = localStorage.getItem('novelAnalysis');
+    if (!raw) return;
+    try {
+        const d = JSON.parse(raw);
+        d.characters = d.characters || {};
+        d.scenes = d.scenes || {};
+        d.characters.characters = mgmtChars;
+        d.characters.total = mgmtChars.length;
+        d.scenes.scenes = mgmtScenes;
+        d.scenes.total = mgmtScenes.length;
+        localStorage.setItem('novelAnalysis', JSON.stringify(d));
+    } catch (e) {}
+}
+
+function confirmMgmt() {
+    markCompleted(2);
+    alert('角色与场景清单已确认！');
+}
+
+function escAttr(s) {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── 页面切换时加载数据 ──
+const origNavigateTo = navigateTo;
+navigateTo = function(page) {
+    origNavigateTo(page);
+    if (page === 'characters') {
+        if (loadMgmtData()) {
+            renderMgmtPage();
+        }
+    }
+};
 </script>
 
 </body>
