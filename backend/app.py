@@ -27,6 +27,7 @@ from backend.scene_extractor import extract_scenes
 from backend.dialogue_separator import extract_dialogue
 from backend.fusion_script import generate_fusion_script
 from backend.novel_analyzer import analyze_novel
+from backend.logic_checker import check_logic
 
 app = FastAPI(
     title="Novel to Script API",
@@ -298,6 +299,27 @@ class AnalyzeNovelRequest(BaseModel):
         default="",
         max_length=200,
         description="小说标题（可选）",
+    )
+
+
+class LogicCheckRequest(BaseModel):
+    """逻辑检测请求体"""
+    script_yaml: str = Field(
+        ...,
+        min_length=10,
+        max_length=500000,
+        description="要检测的剧本 YAML 文本",
+    )
+    original_text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文（用作参考基准）",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="作品标题（可选）",
     )
 
 
@@ -632,6 +654,29 @@ def analyze_novel_endpoint(req: AnalyzeNovelRequest):
         "dialogue": result["dialogue"],
         "summary": summary,
     }, message=f"解读完成：{summary['total_characters']}个角色、{summary['total_scenes']}个场景、{summary['total_dialogues']}条对话")
+
+
+@app.post("/api/check/logic")
+def check_logic_endpoint(req: LogicCheckRequest):
+    """剧本逻辑矛盾检测
+
+    对生成的剧本进行四类逻辑问题检测：
+    - 角色一致性：角色无故消失/出现、前后描述矛盾
+    - 场景连续性：场景间缺少过渡、地点跳跃不合理
+    - 时间线：时间顺序混乱、跨度过大无交代
+    - 情节漏洞：因果关系断裂、人物行为逻辑矛盾
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    result = check_logic(req.script_yaml, req.original_text, req.title)
+
+    summary = result["summary"]
+    return success_response({
+        "title": req.title or "未命名",
+        "issues": result["issues"],
+        "summary": summary,
+    }, message=f"检测完成：共发现 {summary['total']} 个问题（{summary['critical']}严重/{summary['warning']}警告/{summary['info']}提示）")
 
 
 # ── 前端静态文件挂载 ──
