@@ -14,10 +14,14 @@
             --primary: #4a6cf7;
             --primary-hover: #3b5de7;
             --primary-light: #eef1ff;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --radius: 10px;
-            --shadow: 0 1px 3px rgba(0,0,0,0.06);
+        --success: #10b981;
+        --success-light: #ecfdf5;
+        --warning: #f59e0b;
+        --warning-light: #fffbeb;
+        --danger: #ef4444;
+        --radius: 10px;
+        --radius-sm: 6px;
+        --shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -156,6 +160,219 @@
             .step .step-num { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
             .page { padding: 16px; }
         }
+
+        /* ── Form Elements ── */
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text);
+            background: var(--bg);
+            transition: border-color 0.15s;
+            resize: vertical;
+        }
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        textarea { min-height: 180px; line-height: 1.6; }
+        textarea::placeholder { color: #adb5bd; }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 14px;
+        }
+        .form-row > * { flex: 1; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover:not(:disabled) {
+            background: var(--bg);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Result Panels ── */
+        .result-section { margin-top: 16px; }
+        .result-section h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .stat-box {
+            background: var(--primary-light);
+            border-radius: var(--radius-sm);
+            padding: 10px 16px;
+            text-align: center;
+            min-width: 70px;
+        }
+        .stat-box .num {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .stat-box .lbl {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 10px;
+        }
+        .char-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+        }
+        .char-item .char-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .char-item .char-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .char-item .char-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+        .tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .tag-main { background: var(--primary-light); color: var(--primary); }
+        .tag-support { background: var(--success-light); color: #16a34a; }
+        .tag-villain { background: #fef2f2; color: var(--danger); }
+
+        .scene-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .scene-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .scene-item .scene-idx {
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .scene-item .scene-info { min-width: 0; }
+        .scene-item .scene-loc {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .scene-item .scene-detail {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .dialogue-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .dialogue-table th {
+            text-align: left;
+            padding: 8px 10px;
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 12px;
+            border-bottom: 2px solid var(--border);
+        }
+        .dialogue-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dialogue-table tr:nth-child(even) td { background: var(--bg); }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -191,10 +408,51 @@
     <section class="page active" id="page-upload">
         <div class="card">
             <h3>上传解读</h3>
-            <div class="placeholder">
-                <div class="line"></div>
-                <p>在此页面上传小说文本进行 AI 解读</p>
-                <p style="margin-top:8px;font-size:12px">PR16 实现</p>
+
+            <label for="novelTitle">作品标题（可选）</label>
+            <input type="text" id="novelTitle" placeholder="输入小说标题" style="margin-bottom:14px">
+
+            <label for="novelText">正文内容</label>
+            <textarea id="novelText" placeholder="将小说文本粘贴到这里，不少于50字..."></textarea>
+
+            <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+                <button class="btn btn-primary" id="btnAnalyze" onclick="startAnalyze()">
+                    开始解读
+                </button>
+                <input type="file" id="fileInput" accept=".txt" style="display:none" onchange="handleFileUpload(event)">
+                <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">
+                    上传文件
+                </button>
+                <span id="fileName" style="font-size:12px;color:var(--text-secondary)"></span>
+            </div>
+        </div>
+
+        <div class="hidden" id="resultPanel">
+            <!-- 统计概览 -->
+            <div class="card">
+                <h3>解读结果</h3>
+                <div class="stats-row" id="statsRow"></div>
+            </div>
+
+            <!-- 角色列表 -->
+            <div class="card result-section" id="charSection">
+                <h4>角色列表</h4>
+                <div class="char-grid" id="charGrid"></div>
+            </div>
+
+            <!-- 场景列表 -->
+            <div class="card result-section" id="sceneSection">
+                <h4>场景列表</h4>
+                <div class="scene-list" id="sceneList"></div>
+            </div>
+
+            <!-- 对话统计 -->
+            <div class="card result-section" id="dialogueSection">
+                <h4>对话统计</h4>
+                <table class="dialogue-table" id="dialogueTable">
+                    <thead><tr><th>发言者</th><th>次数</th></tr></thead>
+                    <tbody id="dialogueBody"></tbody>
+                </table>
             </div>
         </div>
     </section>
@@ -291,6 +549,125 @@ function markCompleted(stepIndex) {
     for (let i = 0; i < Math.min(stepIndex, steps.length); i++) {
         steps[i].classList.add('completed');
     }
+}
+
+// ── 文件上传 ──
+function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('fileName').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        document.getElementById('novelText').value = ev.target.result;
+    };
+    reader.readAsText(file);
+}
+
+// ── 综合解读 ──
+async function startAnalyze() {
+    const text = document.getElementById('novelText').value.trim();
+    const title = document.getElementById('novelTitle').value.trim();
+
+    if (text.length < 50) {
+        alert('正文内容至少需要50个字符');
+        return;
+    }
+
+    const btn = document.getElementById('btnAnalyze');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 解读中...';
+    document.getElementById('resultPanel').classList.add('hidden');
+
+    try {
+        const resp = await fetch('/api/analyze/novel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, title }),
+        });
+        const data = await resp.json();
+
+        if (data.code !== 0) {
+            alert('解读失败: ' + (data.message || '未知错误'));
+            return;
+        }
+
+        renderResult(data.data);
+        markCompleted(1);
+    } catch (err) {
+        alert('请求失败: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '开始解读';
+    }
+}
+
+function renderResult(d) {
+    const s = d.summary;
+
+    // 统计概览
+    document.getElementById('statsRow').innerHTML = [
+        { label: '角色', value: s.total_characters },
+        { label: '场景', value: s.total_scenes },
+        { label: '对话', value: s.total_dialogues },
+        { label: '叙述段', value: s.total_narrations },
+    ].map(stat => `<div class="stat-box"><div class="num">${stat.value}</div><div class="lbl">${stat.label}</div></div>`).join('');
+
+    // 角色列表
+    const chars = d.characters.characters || [];
+    const charGrid = document.getElementById('charGrid');
+    if (chars.length > 0) {
+        charGrid.innerHTML = chars.map(c => {
+            const roleType = c.role_type || '';
+            let tagClass = '';
+            if (roleType.includes('主角')) tagClass = 'tag-main';
+            else if (roleType.includes('反派')) tagClass = 'tag-villain';
+            else tagClass = 'tag-support';
+            return `<div class="char-item">
+                <div class="char-name">${esc(c.name || '?')} <span class="tag ${tagClass}">${esc(roleType || '未知')}</span></div>
+                <div class="char-meta">${c.gender || ''} ${c.age ? c.age + '岁' : ''}</div>
+                <div class="char-desc">${esc(c.description || '暂无描述')}</div>
+            </div>`;
+        }).join('');
+        document.getElementById('charSection').classList.remove('hidden');
+    } else {
+        document.getElementById('charSection').classList.add('hidden');
+    }
+
+    // 场景列表
+    const scenes = d.scenes.scenes || [];
+    const sceneList = document.getElementById('sceneList');
+    if (scenes.length > 0) {
+        sceneList.innerHTML = scenes.map(sc => `<div class="scene-item">
+            <div class="scene-idx">${sc.scene_index}</div>
+            <div class="scene-info">
+                <div class="scene-loc">${esc(sc.location || '?')} <span class="tag tag-support">${esc(sc.location_type || '')}</span></div>
+                <div class="scene-detail">${esc(sc.time_period || '')} ${esc(sc.weather || '')} | ${(sc.characters || []).join(', ')}</div>
+            </div>
+        </div>`).join('');
+        document.getElementById('sceneSection').classList.remove('hidden');
+    } else {
+        document.getElementById('sceneSection').classList.add('hidden');
+    }
+
+    // 对话发言者分布
+    const speakerDist = d.dialogue.speaker_distribution || {};
+    const distKeys = Object.keys(speakerDist);
+    if (distKeys.length > 0) {
+        document.getElementById('dialogueBody').innerHTML = distKeys
+            .map(name => `<tr><td>${esc(name)}</td><td>${speakerDist[name]} 条</td></tr>`)
+            .join('');
+        document.getElementById('dialogueSection').classList.remove('hidden');
+    } else {
+        document.getElementById('dialogueSection').classList.add('hidden');
+    }
+
+    document.getElementById('resultPanel').classList.remove('hidden');
+}
+
+function esc(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 </script>
 

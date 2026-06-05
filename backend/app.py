@@ -26,6 +26,7 @@ from backend.character_extractor import extract_characters
 from backend.scene_extractor import extract_scenes
 from backend.dialogue_separator import extract_dialogue
 from backend.fusion_script import generate_fusion_script
+from backend.novel_analyzer import analyze_novel
 
 app = FastAPI(
     title="Novel to Script API",
@@ -282,6 +283,21 @@ class FusionConvertRequest(BaseModel):
     version: str = Field(
         default="movie",
         description="剧本版本：movie（电影版）、tv_series（电视剧版）、stage_play（舞台剧版）",
+    )
+
+
+class AnalyzeNovelRequest(BaseModel):
+    """综合解读请求体"""
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文内容",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="小说标题（可选）",
     )
 
 
@@ -593,6 +609,29 @@ def fusion_convert(req: FusionConvertRequest):
         msg_parts.append(f"{sc['total']}个场景")
 
     return success_response(result, message=f"融合生成完成（{' + '.join(msg_parts)}）")
+
+
+@app.post("/api/analyze/novel")
+def analyze_novel_endpoint(req: AnalyzeNovelRequest):
+    """综合解读小说
+
+    串联角色提取 + 场景提取 + 对话分离三阶段分析，
+    一次性返回完整解读报告。
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    result = analyze_novel(req.text)
+
+    summary = result["summary"]
+    return success_response({
+        "title": req.title or "未命名",
+        "text_length": len(req.text),
+        "characters": result["characters"],
+        "scenes": result["scenes"],
+        "dialogue": result["dialogue"],
+        "summary": summary,
+    }, message=f"解读完成：{summary['total_characters']}个角色、{summary['total_scenes']}个场景、{summary['total_dialogues']}条对话")
 
 
 # ── 前端静态文件挂载 ──
