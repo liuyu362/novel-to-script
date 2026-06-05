@@ -1,0 +1,4 @@
+{
+  "yaml_text": "meta:\n  title: 测试剧本\n  version: invalid_version\ncharacters:\n  - name: 张三\n    gender: 外星人\n  - no_name_here: true\nscenes:\n  - name: 第一幕\n    acts:\n      - type: singing\n        content: 角色开始唱歌\n      - type: dialogue\n        content: Hello world\n        character: \"\"\n      - content: 没有 type 的 act",
+  "source_title": "测试作品"
+}
