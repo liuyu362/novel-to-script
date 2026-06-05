@@ -1,5 +1,5 @@
 """
-融合分析生成剧本
+融合分析生成剧本（全中文字段名）
 串联 PR11 角色提取 + PR12 场景提取 + PR13 对话分离，
 将三阶段分析结果注入 Prompt，生成上下文更丰富的剧本
 """
@@ -32,44 +32,44 @@ def _build_fusion_user_prompt(
 
     # 1. 角色档案
     parts.append("## 已分析角色档案\n")
-    if chars.get("characters"):
-        for c in chars["characters"]:
-            role_tag = c.get("role_type", "未知")
+    if chars.get("角色列表"):
+        for c in chars["角色列表"]:
+            role_tag = c.get("角色类型", "未知")
             parts.append(
-                f"- {c.get('name', '未知')}：{c.get('gender', '未知')}，"
-                f"{c.get('age', '未知')}，{role_tag}"
+                f"- {c.get('姓名', '未知')}：{c.get('性别', '未知')}，"
+                f"{c.get('年龄', '未知')}，{role_tag}"
             )
-            if c.get("description"):
-                parts.append(f"  {c.get('description', '')}")
-        parts.append(f"\n共 {chars['total']} 个角色，角色分布：{chars.get('role_distribution', {})}")
+            if c.get("描述"):
+                parts.append(f"  {c.get('描述', '')}")
+        parts.append(f"\n共 {chars['总数']} 个角色，角色分布：{chars.get('角色分布', {})}")
     else:
         parts.append("(未提取到角色)")
 
     # 2. 场景地图
     parts.append("\n\n## 已分析场景地图\n")
-    if scenes.get("scenes"):
-        for s in scenes["scenes"]:
+    if scenes.get("场景列表"):
+        for s in scenes["场景列表"]:
             parts.append(
-                f"- 场景{s.get('scene_index', '?')}：{s.get('location', '未知')}"
-                f" [{s.get('location_type', '未知')}] / {s.get('time_period', '未知')} / {s.get('weather', '未知')}"
+                f"- 场景{s.get('场景序号', '?')}：{s.get('地点', '未知')}"
+                f" [{s.get('地点类型', '未知')}] / {s.get('时间段', '未知')} / {s.get('天气', '未知')}"
             )
-            if s.get("characters_present"):
-                parts.append(f"  出场角色：{'、'.join(s['characters_present'])}")
-            if s.get("description"):
-                parts.append(f"  内容：{s['description']}")
-        parts.append(f"\n共 {scenes['total']} 个场景")
-        parts.append(f"场景分布：{scenes.get('location_distribution', {})}")
+            if s.get("在场角色"):
+                parts.append(f"  出场角色：{'、'.join(s['在场角色'])}")
+            if s.get("描述"):
+                parts.append(f"  内容：{s['描述']}")
+        parts.append(f"\n共 {scenes['总数']} 个场景")
+        parts.append(f"场景分布：{scenes.get('地点分布', {})}")
     else:
         parts.append("(未提取到场景)")
 
     # 3. 对话/叙述分析摘要
     parts.append("\n\n## 已分析文本结构\n")
-    parts.append(f"总片段 {dialogue.get('total', 0)}：")
-    parts.append(f"对话 {dialogue.get('dialogue_count', 0)} 条，叙述 {dialogue.get('narration_count', 0)} 段")
-    parts.append(f"对话占比 {dialogue.get('dialogue_ratio', 0):.1%}")
-    if dialogue.get("speaker_distribution"):
+    parts.append(f"总片段 {dialogue.get('总数', 0)}：")
+    parts.append(f"对话 {dialogue.get('对话数', 0)} 条，叙述 {dialogue.get('叙述数', 0)} 段")
+    parts.append(f"对话占比 {dialogue.get('对话占比', 0):.1%}")
+    if dialogue.get("发言者分布"):
         speaker_list = sorted(
-            dialogue["speaker_distribution"].items(),
+            dialogue["发言者分布"].items(),
             key=lambda x: x[1], reverse=True
         )
         parts.append(f"发言者排名：{'、'.join(f'{k}({v})' for k, v in speaker_list[:5])}")
@@ -98,18 +98,18 @@ def generate_fusion_script(text: str, title: str = "", version: str = "movie") -
 
     Returns:
         {
-            "title": str,
-            "version": str,
-            "text_length": int,
-            "analysis": {
-                "characters": {...},
-                "scenes": {...},
-                "dialogue": {...}
+            "标题": str,
+            "版本": str,
+            "文本长度": int,
+            "分析数据": {
+                "角色分析": {...},
+                "场景分析": {...},
+                "对话分析": {...}
             },
-            "script": {
-                "yaml": str,
-                "stats": {...},
-                "validation": {...}
+            "剧本": {
+                "yaml文本": str,
+                "统计": {...},
+                "验证": {...}
             }
         }
     """
@@ -142,21 +142,21 @@ def generate_fusion_script(text: str, title: str = "", version: str = "movie") -
         parse_warning = "YAML 解析失败，返回原始文本"
 
     return {
-        "title": title or "未命名",
-        "version": VERSION_NAMES.get(version, "电影版"),
-        "text_length": len(text),
-        "analysis": {
-            "characters": chars,
-            "scenes": scenes,
-            "dialogue": dialogue,
+        "标题": title or "未命名",
+        "版本": VERSION_NAMES.get(version, "电影版"),
+        "文本长度": len(text),
+        "分析数据": {
+            "角色分析": chars,
+            "场景分析": scenes,
+            "对话分析": dialogue,
         },
-        "script": {
-            "yaml": script_yaml,
-            "stats": script_stats,
-            "validation": validation,
-            "parse_warning": parse_warning,
+        "剧本": {
+            "yaml文本": script_yaml,
+            "统计": script_stats,
+            "验证": validation,
+            "解析警告": parse_warning,
         },
-        "analysis_errors": errors if errors else None,
+        "分析错误": errors if errors else None,
     }
 
 

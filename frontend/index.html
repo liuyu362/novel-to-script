@@ -1248,30 +1248,30 @@ async function startAnalyze() {
 }
 
 function renderResult(d) {
-    const s = d.summary;
+    const s = d.汇总;
 
     // 统计概览
     document.getElementById('statsRow').innerHTML = [
-        { label: '角色', value: s.total_characters },
-        { label: '场景', value: s.total_scenes },
-        { label: '对话', value: s.total_dialogues },
-        { label: '叙述段', value: s.total_narrations },
+        { label: '角色', value: s.角色总数 },
+        { label: '场景', value: s.场景总数 },
+        { label: '对话', value: s.对话总数 },
+        { label: '叙述段', value: s.叙述总数 },
     ].map(stat => `<div class="stat-box"><div class="num">${stat.value}</div><div class="lbl">${stat.label}</div></div>`).join('');
 
     // 角色列表
-    const chars = d.characters.characters || [];
+    const chars = d.角色分析.角色列表 || [];
     const charGrid = document.getElementById('charGrid');
     if (chars.length > 0) {
         charGrid.innerHTML = chars.map(c => {
-            const roleType = c.role_type || '';
+            const roleType = c.角色类型 || '';
             let tagClass = '';
             if (roleType.includes('主角')) tagClass = 'tag-main';
             else if (roleType.includes('反派')) tagClass = 'tag-villain';
             else tagClass = 'tag-support';
             return `<div class="char-item">
-                <div class="char-name">${esc(c.name || '?')} <span class="tag ${tagClass}">${esc(roleType || '未知')}</span></div>
-                <div class="char-meta">${c.gender || ''} ${c.age ? c.age + '岁' : ''}</div>
-                <div class="char-desc">${esc(c.description || '暂无描述')}</div>
+                <div class="char-name">${esc(c.姓名 || '?')} <span class="tag ${tagClass}">${esc(roleType || '未知')}</span></div>
+                <div class="char-meta">${c.性别 || ''} ${c.年龄 ? c.年龄 + '岁' : ''}</div>
+                <div class="char-desc">${esc(c.描述 || '暂无描述')}</div>
             </div>`;
         }).join('');
         document.getElementById('charSection').classList.remove('hidden');
@@ -1280,14 +1280,14 @@ function renderResult(d) {
     }
 
     // 场景列表
-    const scenes = d.scenes.scenes || [];
+    const scenes = d.场景分析.场景列表 || [];
     const sceneList = document.getElementById('sceneList');
     if (scenes.length > 0) {
         sceneList.innerHTML = scenes.map(sc => `<div class="scene-item">
-            <div class="scene-idx">${sc.scene_index}</div>
+            <div class="scene-idx">${sc.场景序号}</div>
             <div class="scene-info">
-                <div class="scene-loc">${esc(sc.location || '?')} <span class="tag tag-support">${esc(sc.location_type || '')}</span></div>
-                <div class="scene-detail">${esc(sc.time_period || '')} ${esc(sc.weather || '')} | ${(sc.characters || []).join(', ')}</div>
+                <div class="scene-loc">${esc(sc.地点 || '?')} <span class="tag tag-support">${esc(sc.地点类型 || '')}</span></div>
+                <div class="scene-detail">${esc(sc.时间段 || '')} ${esc(sc.天气 || '')} | ${(sc.在场角色 || []).join(', ')}</div>
             </div>
         </div>`).join('');
         document.getElementById('sceneSection').classList.remove('hidden');
@@ -1296,7 +1296,7 @@ function renderResult(d) {
     }
 
     // 对话发言者分布
-    const speakerDist = d.dialogue.speaker_distribution || {};
+    const speakerDist = d.对话分析.发言者分布 || {};
     const distKeys = Object.keys(speakerDist);
     if (distKeys.length > 0) {
         document.getElementById('dialogueBody').innerHTML = distKeys
@@ -1326,8 +1326,8 @@ function loadMgmtData() {
     if (!raw) return false;
     try {
         const d = JSON.parse(raw);
-        mgmtChars = (d.characters?.characters || []).map(c => ({...c}));
-        mgmtScenes = (d.scenes?.scenes || []).map(s => ({...s}));
+        mgmtChars = (d.角色分析?.角色列表 || []).map(c => ({...c}));
+        mgmtScenes = (d.场景分析?.场景列表 || []).map(s => ({...s}));
         return true;
     } catch (e) {
         return false;
@@ -1353,17 +1353,17 @@ function renderCharList() {
     }
     el.innerHTML = mgmtChars.map((c, i) => `<div class="char-card">
         <div class="card-top">
-            <span class="name">${esc(c.name || '未命名')}
-                <span class="tag ${c.role_type === '主角' ? 'tag-main' : c.role_type === '反派' ? 'tag-villain' : 'tag-support'}">${esc(c.role_type || '配角')}</span>
+            <span class="name">${esc(c.姓名 || '未命名')}
+                <span class="tag ${c.角色类型 === '主角' ? 'tag-main' : c.角色类型 === '反派' ? 'tag-villain' : 'tag-support'}">${esc(c.角色类型 || '配角')}</span>
             </span>
             <div class="actions">
                 <button class="btn-sm" onclick="openEditChar(${i})">编辑</button>
                 <button class="btn-sm danger" onclick="deleteChar(${i})">删除</button>
             </div>
         </div>
-        <div class="card-meta">${esc(c.gender || '未知')} | ${esc(c.age || '未知')}</div>
-        ${c.description ? '<div class="card-desc">' + esc(c.description) + '</div>' : ''}
-        ${c.aliases && c.aliases.length ? '<div class="card-meta">别名: ' + c.aliases.map(esc).join(', ') + '</div>' : ''}
+        <div class="card-meta">${esc(c.性别 || '未知')} | ${esc(c.年龄 || '未知')}</div>
+        ${c.描述 ? '<div class="card-desc">' + esc(c.描述) + '</div>' : ''}
+        ${c.别名 && c.别名.length ? '<div class="card-meta">别名: ' + c.别名.map(esc).join(', ') + '</div>' : ''}
     </div>`).join('');
 }
 
@@ -1372,26 +1372,26 @@ function openEditChar(idx) {
     const c = mgmtChars[idx];
     buildModal('编辑角色', `
         <label>姓名</label>
-        <input id="efName" value="${escAttr(c.name || '')}">
+        <input id="efName" value="${escAttr(c.姓名 || '')}">
         <label>角色类型</label>
         <select id="efRole">
-            ${['主角','配角','反派','路人'].map(t => `<option ${c.role_type===t?'selected':''}>${t}</option>`).join('')}
+            ${['主角','配角','反派','路人'].map(t => `<option ${c.角色类型===t?'selected':''}>${t}</option>`).join('')}
         </select>
         <label>性别</label>
         <select id="efGender">
-            ${['男','女','未知'].map(t => `<option ${c.gender===t?'selected':''}>${t}</option>`).join('')}
+            ${['男','女','未知'].map(t => `<option ${c.性别===t?'selected':''}>${t}</option>`).join('')}
         </select>
         <label>年龄</label>
-        <input id="efAge" value="${escAttr(c.age || '')}" placeholder="如 28岁 / 中年">
+        <input id="efAge" value="${escAttr(c.年龄 || '')}" placeholder="如 28岁 / 中年">
         <label>描述</label>
-        <textarea id="efDesc">${esc(c.description || '')}</textarea>
+        <textarea id="efDesc">${esc(c.描述 || '')}</textarea>
         <label>别名（逗号分隔）</label>
-        <input id="efAliases" value="${escAttr((c.aliases || []).join(', '))}">
+        <input id="efAliases" value="${escAttr((c.别名 || []).join(', '))}">
     `);
 }
 
 function deleteChar(idx) {
-    if (!confirm('确定删除角色「' + (mgmtChars[idx].name || '未命名') + '」？')) return;
+    if (!confirm('确定删除角色「' + (mgmtChars[idx].姓名 || '未命名') + '」？')) return;
     mgmtChars.splice(idx, 1);
     renderMgmtPage();
     saveMgmtData();
@@ -1408,12 +1408,12 @@ function renderSceneList() {
         <div class="card-top">
             <div class="scene-num">${i + 1}</div>
             <div class="scene-body">
-                <div class="scene-loc">${esc(s.location || '未命名场景')}
-                    <span class="tag tag-support">${esc(s.location_type || '未知')}</span>
+                <div class="scene-loc">${esc(s.地点 || '未命名场景')}
+                    <span class="tag tag-support">${esc(s.地点类型 || '未知')}</span>
                 </div>
-                <div class="scene-info">${esc(s.time_period || '')} | ${esc(s.weather || '')}</div>
-                ${s.description ? '<div class="scene-info">' + esc(s.description) + '</div>' : ''}
-                ${(s.characters_present || []).length ? '<div class="scene-chars">出场: ' + (s.characters_present || []).map(esc).join(', ') + '</div>' : ''}
+                <div class="scene-info">${esc(s.时间段 || '')} | ${esc(s.天气 || '')}</div>
+                ${s.描述 ? '<div class="scene-info">' + esc(s.描述) + '</div>' : ''}
+                ${(s.在场角色 || []).length ? '<div class="scene-chars">出场: ' + (s.在场角色 || []).map(esc).join(', ') + '</div>' : ''}
             </div>
             <div class="actions">
                 <button class="btn-sm" onclick="openEditScene(${i})">编辑</button>
@@ -1428,26 +1428,26 @@ function openEditScene(idx) {
     const s = mgmtScenes[idx];
     buildModal('编辑场景', `
         <label>地点名称</label>
-        <input id="efLoc" value="${escAttr(s.location || '')}">
+        <input id="efLoc" value="${escAttr(s.地点 || '')}">
         <label>地点类型</label>
         <select id="efLocType">
-            ${['室内','室外','未知'].map(t => `<option ${s.location_type===t?'selected':''}>${t}</option>`).join('')}
+            ${['室内','室外','未知'].map(t => `<option ${s.地点类型===t?'selected':''}>${t}</option>`).join('')}
         </select>
         <label>时间</label>
-        <input id="efTime" value="${escAttr(s.time_period || '')}" placeholder="如 清晨 / 午夜">
+        <input id="efTime" value="${escAttr(s.时间段 || '')}" placeholder="如 清晨 / 午夜">
         <label>天气</label>
-        <input id="efWeather" value="${escAttr(s.weather || '')}" placeholder="如 晴 / 暴雨 / 未知">
+        <input id="efWeather" value="${escAttr(s.天气 || '')}" placeholder="如 晴 / 暴雨 / 未知">
         <label>在场角色（逗号分隔）</label>
-        <input id="efChars" value="${escAttr((s.characters_present || []).join(', '))}">
+        <input id="efChars" value="${escAttr((s.在场角色 || []).join(', '))}">
         <label>描述</label>
-        <textarea id="efDesc">${esc(s.description || '')}</textarea>
+        <textarea id="efDesc">${esc(s.描述 || '')}</textarea>
         <label>关键事件（逗号分隔）</label>
-        <input id="efEvents" value="${escAttr((s.key_events || []).join(', '))}">
+        <input id="efEvents" value="${escAttr((s.关键事件 || []).join(', '))}">
     `);
 }
 
 function deleteScene(idx) {
-    if (!confirm('确定删除场景「' + (mgmtScenes[idx].location || '未命名') + '」？')) return;
+    if (!confirm('确定删除场景「' + (mgmtScenes[idx].地点 || '未命名') + '」？')) return;
     mgmtScenes.splice(idx, 1);
     renderMgmtPage();
     saveMgmtData();
@@ -1513,12 +1513,12 @@ function saveModal() {
 
     if (mgmtEditing.type === 'char') {
         const obj = {
-            name: document.getElementById('efName').value.trim() || '未命名',
-            role_type: document.getElementById('efRole').value,
-            gender: document.getElementById('efGender').value,
-            age: document.getElementById('efAge').value.trim() || '未知',
-            description: document.getElementById('efDesc').value.trim(),
-            aliases: document.getElementById('efAliases').value.split(',').map(s => s.trim()).filter(Boolean),
+            姓名: document.getElementById('efName').value.trim() || '未命名',
+            角色类型: document.getElementById('efRole').value,
+            性别: document.getElementById('efGender').value,
+            年龄: document.getElementById('efAge').value.trim() || '未知',
+            描述: document.getElementById('efDesc').value.trim(),
+            别名: document.getElementById('efAliases').value.split(',').map(s => s.trim()).filter(Boolean),
         };
         if (mgmtEditing.index >= 0) {
             mgmtChars[mgmtEditing.index] = obj;
@@ -1527,13 +1527,13 @@ function saveModal() {
         }
     } else if (mgmtEditing.type === 'scene') {
         const obj = {
-            location: document.getElementById('efLoc').value.trim() || '未命名场景',
-            location_type: document.getElementById('efLocType').value,
-            time_period: document.getElementById('efTime').value.trim() || '未知',
-            weather: document.getElementById('efWeather').value.trim() || '未知',
-            characters_present: document.getElementById('efChars').value.split(',').map(s => s.trim()).filter(Boolean),
-            description: document.getElementById('efDesc').value.trim(),
-            key_events: document.getElementById('efEvents').value.split(',').map(s => s.trim()).filter(Boolean),
+            地点: document.getElementById('efLoc').value.trim() || '未命名场景',
+            地点类型: document.getElementById('efLocType').value,
+            时间段: document.getElementById('efTime').value.trim() || '未知',
+            天气: document.getElementById('efWeather').value.trim() || '未知',
+            在场角色: document.getElementById('efChars').value.split(',').map(s => s.trim()).filter(Boolean),
+            描述: document.getElementById('efDesc').value.trim(),
+            关键事件: document.getElementById('efEvents').value.split(',').map(s => s.trim()).filter(Boolean),
         };
         if (mgmtEditing.index >= 0) {
             mgmtScenes[mgmtEditing.index] = obj;
@@ -1553,12 +1553,12 @@ function saveMgmtData() {
     if (!raw) return;
     try {
         const d = JSON.parse(raw);
-        d.characters = d.characters || {};
-        d.scenes = d.scenes || {};
-        d.characters.characters = mgmtChars;
-        d.characters.total = mgmtChars.length;
-        d.scenes.scenes = mgmtScenes;
-        d.scenes.total = mgmtScenes.length;
+        d.角色分析 = d.角色分析 || {};
+        d.场景分析 = d.场景分析 || {};
+        d.角色分析.角色列表 = mgmtChars;
+        d.角色分析.总数 = mgmtChars.length;
+        d.场景分析.场景列表 = mgmtScenes;
+        d.场景分析.总数 = mgmtScenes.length;
         localStorage.setItem('novelAnalysis', JSON.stringify(d));
     } catch (e) {}
 }
@@ -1614,12 +1614,12 @@ function loadAdaptData() {
 
     // 显示摘要
     const d = JSON.parse(raw);
-    const s = d.summary;
+    const s = d.汇总;
     document.getElementById('adaptSummaryText').textContent =
         title + ' — ' +
-        (s.total_characters || 0) + '个角色, ' +
-        (s.total_scenes || 0) + '个场景, ' +
-        (s.total_dialogues || 0) + '条对话 | 共 ' +
+        (s.角色总数 || 0) + '个角色, ' +
+        (s.场景总数 || 0) + '个场景, ' +
+        (s.对话总数 || 0) + '条对话 | 共 ' +
         rawText.length + ' 字';
 }
 
@@ -1662,7 +1662,7 @@ async function startAdapt() {
 }
 
 function renderScript(data) {
-    const yaml = data.script.yaml || '';
+    const yaml = data.剧本.yaml文本 || '';
     adaptScriptText = yaml;
 
     // 简单 YAML 语法高亮
@@ -1679,10 +1679,10 @@ function renderScript(data) {
 
     // 更新摘要中的版本信息
     const versionNames = { movie: '电影版', tv_series: '电视剧版', stage_play: '舞台剧版' };
-    const stats = data.script.stats;
+    const stats = data.剧本.统计;
     let summaryExtra = '';
     if (stats) {
-        summaryExtra = ' | ' + (stats.scene_count || 0) + '场, ' + (stats.character_count || 0) + '个角色';
+        summaryExtra = ' | ' + (stats.场景数 || 0) + '场, ' + (stats.角色数 || 0) + '个角色';
     }
     const existing = document.getElementById('adaptSummaryText').textContent;
     document.getElementById('adaptSummaryText').textContent =
@@ -1749,7 +1749,7 @@ async function startDetect() {
     let scriptYaml = '';
     try {
         const scriptData = JSON.parse(scriptRaw);
-        scriptYaml = scriptData.script?.yaml || '';
+        scriptYaml = scriptData.剧本?.yaml文本 || '';
     } catch (e) {
         alert('剧本数据格式异常，请重新生成剧本');
         return;
@@ -1788,27 +1788,27 @@ async function startDetect() {
 }
 
 function renderDetectResult(data) {
-    detectIssues = data.issues || [];
+    detectIssues = data.问题列表 || [];
     detectCurrentFilter = 'all';
 
-    const summary = data.summary || { total: 0, critical: 0, warning: 0, info: 0 };
+    const summary = data.汇总 || { 总数: 0, 严重: 0, 警告: 0, 提示: 0 };
 
     // 统计
     document.getElementById('detectSummary').innerHTML =
-        '<div class="detect-stat ' + (summary.total === 0 ? 'pass-stat' : 'critical-stat') + '">' +
-            '<div class="stat-num">' + summary.total + '</div>' +
+        '<div class="detect-stat ' + (summary.总数 === 0 ? 'pass-stat' : 'critical-stat') + '">' +
+            '<div class="stat-num">' + summary.总数 + '</div>' +
             '<div class="stat-label">总问题数</div>' +
         '</div>' +
         '<div class="detect-stat critical-stat">' +
-            '<div class="stat-num">' + summary.critical + '</div>' +
+            '<div class="stat-num">' + summary.严重 + '</div>' +
             '<div class="stat-label">严重</div>' +
         '</div>' +
         '<div class="detect-stat warning-stat">' +
-            '<div class="stat-num">' + summary.warning + '</div>' +
+            '<div class="stat-num">' + summary.警告 + '</div>' +
             '<div class="stat-label">警告</div>' +
         '</div>' +
         '<div class="detect-stat info-stat">' +
-            '<div class="stat-num">' + summary.info + '</div>' +
+            '<div class="stat-num">' + summary.提示 + '</div>' +
             '<div class="stat-label">提示</div>' +
         '</div>';
 
@@ -1852,26 +1852,26 @@ const SEVERITY_NAMES = {
 
 function renderIssueList(issues) {
     document.getElementById('issueList').innerHTML = issues.map((iss, i) => {
-        const sevClass = 'severity-' + iss.severity;
-        const typeClass = TYPE_CSS[iss.type] || '';
-        const issueClass = (iss.severity === 'critical' ? 'critical-issue' :
-                           iss.severity === 'warning' ? 'warning-issue' : 'info-issue');
+        const sevClass = 'severity-' + iss.严重程度;
+        const typeClass = TYPE_CSS[iss.类型] || '';
+        const issueClass = (iss.严重程度 === 'critical' ? 'critical-issue' :
+                           iss.严重程度 === 'warning' ? 'warning-issue' : 'info-issue');
 
         return '<div class="issue-card ' + issueClass + '">' +
             '<div class="issue-header">' +
                 '<span class="type-label ' + typeClass + '">' +
-                    esc(TYPE_NAMES[iss.type] || iss.type) +
+                    esc(TYPE_NAMES[iss.类型] || iss.类型) +
                 '</span>' +
                 '<span class="severity-badge ' + sevClass + '">' +
-                    esc(SEVERITY_NAMES[iss.severity] || iss.severity) +
+                    esc(SEVERITY_NAMES[iss.严重程度] || iss.严重程度) +
                 '</span>' +
-                (iss.scene_ref ? '<span style="font-size:11px;color:var(--text-secondary)">' + esc(iss.scene_ref) + '</span>' : '') +
+                (iss.关联场景 ? '<span style="font-size:11px;color:var(--text-secondary)">' + esc(iss.关联场景) + '</span>' : '') +
             '</div>' +
-            '<div class="issue-desc">' + esc(iss.description) + '</div>' +
-            (iss.involved && iss.involved.length ?
-                '<div class="issue-meta">涉及: ' + iss.involved.map(esc).join(', ') + '</div>' : '') +
-            (iss.suggestion ?
-                '<div class="issue-suggestion">' + esc(iss.suggestion) + '</div>' : '') +
+            '<div class="issue-desc">' + esc(iss.描述) + '</div>' +
+            (iss.涉及角色 && iss.涉及角色.length ?
+                '<div class="issue-meta">涉及: ' + iss.涉及角色.map(esc).join(', ') + '</div>' : '') +
+            (iss.建议 ?
+                '<div class="issue-suggestion">' + esc(iss.建议) + '</div>' : '') +
         '</div>';
     }).join('');
 }
@@ -1884,7 +1884,7 @@ function filterIssues(filter) {
     });
 
     const filtered = filter === 'all' ? detectIssues :
-        detectIssues.filter(i => i.type === filter);
+        detectIssues.filter(i => i.类型 === filter);
 
     if (filtered.length === 0) {
         document.getElementById('issueList').innerHTML = '<div class="empty-hint">该类别没有问题</div>';
@@ -1921,9 +1921,9 @@ function loadExportData() {
 
     // 数据概览
     let chars = 0, scenes = 0, issues = 0, scriptLen = 0;
-    try { const d = JSON.parse(analysisRaw); chars = d.characters?.total || 0; scenes = d.scenes?.total || 0; } catch(e){}
-    try { const d = JSON.parse(scriptRaw); scriptLen = (d.script?.yaml || '').length; } catch(e){}
-    try { const d = JSON.parse(logicRaw); issues = (d.issues || []).length; } catch(e){}
+    try { const d = JSON.parse(analysisRaw); chars = d.角色分析?.总数 || 0; scenes = d.场景分析?.总数 || 0; } catch(e){}
+    try { const d = JSON.parse(scriptRaw); scriptLen = (d.剧本?.yaml文本 || '').length; } catch(e){}
+    try { const d = JSON.parse(logicRaw); issues = (d.问题列表 || []).length; } catch(e){}
 
     document.getElementById('exportOverview').innerHTML =
         '<div class="export-stat">' +
@@ -1991,22 +1991,22 @@ function buildExportData() {
     const data = { title, export_time: new Date().toISOString() };
 
     if (document.getElementById('cbScript')?.checked) {
-        try { const d = JSON.parse(scriptRaw); data.script = d.script; } catch(e){}
+        try { const d = JSON.parse(scriptRaw); data.script = d.剧本; } catch(e){}
     }
     if (document.getElementById('cbChars')?.checked) {
-        try { const d = JSON.parse(analysisRaw); data.characters = d.characters; } catch(e){}
+        try { const d = JSON.parse(analysisRaw); data.characters = d.角色分析; } catch(e){}
     }
     if (document.getElementById('cbScenes')?.checked) {
-        try { const d = JSON.parse(analysisRaw); data.scenes = d.scenes; } catch(e){}
+        try { const d = JSON.parse(analysisRaw); data.scenes = d.场景分析; } catch(e){}
     }
     if (document.getElementById('cbDialogue')?.checked) {
-        try { const d = JSON.parse(analysisRaw); data.dialogue = d.dialogue; } catch(e){}
+        try { const d = JSON.parse(analysisRaw); data.dialogue = d.对话分析; } catch(e){}
     }
     if (document.getElementById('cbLogic')?.checked) {
-        try { const d = JSON.parse(logicRaw); data.logic_report = { issues: d.issues, summary: d.summary }; } catch(e){}
+        try { const d = JSON.parse(logicRaw); data.logic_report = { 问题列表: d.问题列表, 汇总: d.汇总 }; } catch(e){}
     }
     if (document.getElementById('cbSummary')?.checked) {
-        try { const d = JSON.parse(analysisRaw); data.summary = d.summary; } catch(e){}
+        try { const d = JSON.parse(analysisRaw); data.summary = d.汇总; } catch(e){}
     }
 
     return data;
@@ -2025,53 +2025,53 @@ function buildYamlExport(data) {
     if (data.summary) {
         lines.push('## 分析摘要');
         lines.push('summary:');
-        lines.push('  total_characters: ' + (data.summary.total_characters || 0));
-        lines.push('  total_scenes: ' + (data.summary.total_scenes || 0));
-        lines.push('  total_dialogues: ' + (data.summary.total_dialogues || 0));
+        lines.push('  total_characters: ' + (data.summary.角色总数 || 0));
+        lines.push('  total_scenes: ' + (data.summary.场景总数 || 0));
+        lines.push('  total_dialogues: ' + (data.summary.对话总数 || 0));
         lines.push('');
     }
 
-    if (data.script?.yaml) {
+    if (data.script?.yaml文本) {
         lines.push('## 剧本正文');
         lines.push('');
-        lines.push(data.script.yaml);
+        lines.push(data.script.yaml文本);
         lines.push('');
     }
 
-    if (data.characters?.characters) {
+    if (data.characters?.角色列表) {
         lines.push('## 角色列表');
-        data.characters.characters.forEach(c => {
-            lines.push('- name: ' + (c.name || '未知'));
-            lines.push('  role_type: ' + (c.role_type || '配角'));
-            lines.push('  gender: ' + (c.gender || '未知'));
-            lines.push('  age: ' + (c.age || '未知'));
-            if (c.description) lines.push('  description: "' + c.description + '"');
-            if (c.aliases?.length) lines.push('  aliases: [' + c.aliases.map(a => '"' + a + '"').join(', ') + ']');
+        data.characters.角色列表.forEach(c => {
+            lines.push('- name: ' + (c.姓名 || '未知'));
+            lines.push('  role_type: ' + (c.角色类型 || '配角'));
+            lines.push('  gender: ' + (c.性别 || '未知'));
+            lines.push('  age: ' + (c.年龄 || '未知'));
+            if (c.描述) lines.push('  description: "' + c.描述 + '"');
+            if (c.别名?.length) lines.push('  aliases: [' + c.别名.map(a => '"' + a + '"').join(', ') + ']');
             lines.push('');
         });
     }
 
-    if (data.scenes?.scenes) {
+    if (data.scenes?.场景列表) {
         lines.push('## 场景列表');
-        data.scenes.scenes.forEach(s => {
-            lines.push('- location: ' + (s.location || '未知'));
-            lines.push('  location_type: ' + (s.location_type || '未知'));
-            lines.push('  time_period: ' + (s.time_period || '未知'));
-            lines.push('  weather: ' + (s.weather || '未知'));
-            if (s.characters_present?.length) lines.push('  characters_present: [' + s.characters_present.map(c => '"' + c + '"').join(', ') + ']');
-            if (s.description) lines.push('  description: "' + s.description + '"');
+        data.scenes.场景列表.forEach(s => {
+            lines.push('- location: ' + (s.地点 || '未知'));
+            lines.push('  location_type: ' + (s.地点类型 || '未知'));
+            lines.push('  time_period: ' + (s.时间段 || '未知'));
+            lines.push('  weather: ' + (s.天气 || '未知'));
+            if (s.在场角色?.length) lines.push('  characters_present: [' + s.在场角色.map(c => '"' + c + '"').join(', ') + ']');
+            if (s.描述) lines.push('  description: "' + s.描述 + '"');
             lines.push('');
         });
     }
 
-    if (data.logic_report?.issues) {
+    if (data.logic_report?.问题列表) {
         lines.push('## 逻辑检测报告');
-        data.logic_report.issues.forEach((iss, i) => {
+        data.logic_report.问题列表.forEach((iss, i) => {
             lines.push('- issue #' + (i+1));
-            lines.push('  type: ' + iss.type);
-            lines.push('  severity: ' + iss.severity);
-            lines.push('  description: "' + iss.description + '"');
-            if (iss.suggestion) lines.push('  suggestion: "' + iss.suggestion + '"');
+            lines.push('  type: ' + iss.类型);
+            lines.push('  severity: ' + iss.严重程度);
+            lines.push('  description: "' + iss.描述 + '"');
+            if (iss.建议) lines.push('  suggestion: "' + iss.建议 + '"');
             lines.push('');
         });
     }
@@ -2090,42 +2090,42 @@ function buildTxtExport(data) {
 
     if (data.summary) {
         lines.push('【分析摘要】');
-        lines.push('  角色数: ' + (data.summary.total_characters || 0));
-        lines.push('  场景数: ' + (data.summary.total_scenes || 0));
-        lines.push('  对话数: ' + (data.summary.total_dialogues || 0));
+        lines.push('  角色数: ' + (data.summary.角色总数 || 0));
+        lines.push('  场景数: ' + (data.summary.场景总数 || 0));
+        lines.push('  对话数: ' + (data.summary.对话总数 || 0));
         lines.push('');
     }
 
-    if (data.script?.yaml) {
+    if (data.script?.yaml文本) {
         lines.push('【剧本正文】');
         lines.push('');
-        lines.push(data.script.yaml);
+        lines.push(data.script.yaml文本);
         lines.push('');
     }
 
-    if (data.characters?.characters) {
+    if (data.characters?.角色列表) {
         lines.push('【角色列表】');
-        data.characters.characters.forEach(c => {
-            lines.push('  - ' + (c.name || '未知') + ' (' + (c.role_type || '配角') + ', ' + (c.gender || '未知') + ')');
-            if (c.description) lines.push('    ' + c.description);
+        data.characters.角色列表.forEach(c => {
+            lines.push('  - ' + (c.姓名 || '未知') + ' (' + (c.角色类型 || '配角') + ', ' + (c.性别 || '未知') + ')');
+            if (c.描述) lines.push('    ' + c.描述);
         });
         lines.push('');
     }
 
-    if (data.scenes?.scenes) {
+    if (data.scenes?.场景列表) {
         lines.push('【场景列表】');
-        data.scenes.scenes.forEach(s => {
-            lines.push('  - ' + (s.location || '未知') + ' [' + (s.time_period || '') + ']');
-            if (s.description) lines.push('    ' + s.description);
+        data.scenes.场景列表.forEach(s => {
+            lines.push('  - ' + (s.地点 || '未知') + ' [' + (s.时间段 || '') + ']');
+            if (s.描述) lines.push('    ' + s.描述);
         });
         lines.push('');
     }
 
-    if (data.logic_report?.issues) {
+    if (data.logic_report?.问题列表) {
         lines.push('【逻辑检测报告】');
-        data.logic_report.issues.forEach((iss, i) => {
-            lines.push('  ' + (i+1) + '. [' + iss.severity + '] ' + iss.description);
-            if (iss.suggestion) lines.push('    → 建议: ' + iss.suggestion);
+        data.logic_report.问题列表.forEach((iss, i) => {
+            lines.push('  ' + (i+1) + '. [' + iss.严重程度 + '] ' + iss.描述);
+            if (iss.建议) lines.push('    → 建议: ' + iss.建议);
         });
         lines.push('');
     }

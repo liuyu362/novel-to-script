@@ -1,5 +1,5 @@
 """
-逻辑矛盾检测模块
+逻辑矛盾检测模块（全中文字段名）
 对生成剧本进行四类逻辑问题检测：
 - 角色一致性：角色无故消失/出现、前后描述矛盾
 - 场景连续性：场景间缺少过渡、地点跳跃不合理
@@ -34,38 +34,38 @@ LOGIC_CHECK_SYSTEM = """你是一名资深剧本编辑，专精于逻辑矛盾�
 
 ## 输出格式
 
-以 JSON 格式返回，包含一个 issues 数组：
+以 JSON 格式返回，包含一个 问题列表 数组：
 
 ```json
 {
-  "issues": [
+  "问题列表": [
     {
-      "type": "character_consistency",
-      "severity": "critical",
-      "scene_ref": "Scene_1",
-      "description": "角色张三在Scene_1中出场，但后续Scene_2至Scene_5均未交代其去向",
-      "suggestion": "建议在Scene_2开头添加一句\"张三已先行离开\"",
-      "involved": ["张三"]
+      "类型": "character_consistency",
+      "严重程度": "critical",
+      "关联场景": "Scene_1",
+      "描述": "角色张三在Scene_1中出场，但后续Scene_2至Scene_5均未交代其去向",
+      "建议": "建议在Scene_2开头添加一句\"张三已先行离开\"",
+      "涉及角色": ["张三"]
     }
   ],
-  "summary": {
-    "total": 5,
-    "critical": 2,
-    "warning": 2,
-    "info": 1
+  "汇总": {
+    "总数": 5,
+    "严重": 2,
+    "警告": 2,
+    "提示": 1
   }
 }
 ```
 
-**severity 等级说明**：
+**严重程度 等级说明**：
 - critical：严重影响剧本逻辑，必须修复
 - warning：存在明显逻辑瑕疵，建议修复
 - info：轻微不一致，可选择性修复
 
 **规则**：
-- 每条 issue 必须包含 type、severity、description、suggestion 字段
-- scene_ref 和 involved 可选，但有助于定位问题时必须提供
-- 如果未发现问题，返回空数组 `"issues": []`，summary 各字段为 0
+- 每条 issue 必须包含 类型、严重程度、描述、建议 字段
+- 关联场景 和 涉及角色 可选，但有助于定位问题时必须提供
+- 如果未发现问题，返回空数组 `"问题列表": []`，汇总 各字段为 0
 - 只输出 JSON，不要输出其他内容"""
 
 
@@ -79,9 +79,9 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
 
     Returns:
         {
-            "issues": [...],
-            "summary": {"total": N, "critical": N, "warning": N, "info": N},
-            "raw_response": "..."
+            "问题列表": [...],
+            "汇总": {"总数": N, "严重": N, "警告": N, "提示": N},
+            "原始响应": "..."
         }
     """
     user_prompt = f"""请检测以下剧本中的逻辑矛盾。
@@ -101,42 +101,42 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
 
     # 尝试从 LLM 回复中提取 JSON
     issues = []
-    summary = {"total": 0, "critical": 0, "warning": 0, "info": 0}
+    summary = {"总数": 0, "严重": 0, "警告": 0, "提示": 0}
 
     try:
         # 尝试直接解析
         data = json.loads(raw)
-        issues = data.get("issues", [])
-        summary = data.get("summary", {"total": 0, "critical": 0, "warning": 0, "info": 0})
+        issues = data.get("问题列表", [])
+        summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
     except json.JSONDecodeError:
         # 尝试从 markdown 代码块中提取
         match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
         if match:
             try:
                 data = json.loads(match.group(1))
-                issues = data.get("issues", [])
-                summary = data.get("summary", {"total": 0, "critical": 0, "warning": 0, "info": 0})
+                issues = data.get("问题列表", [])
+                summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
             except json.JSONDecodeError:
                 # 尝试找到 JSON 对象
-                match2 = re.search(r'\{[\s\S]*"issues"[\s\S]*\}', raw)
+                match2 = re.search(r'\{[\s\S]*"问题列表"[\s\S]*\}', raw)
                 if match2:
                     try:
                         data = json.loads(match2.group(0))
-                        issues = data.get("issues", [])
-                        summary = data.get("summary", {"total": 0, "critical": 0, "warning": 0, "info": 0})
+                        issues = data.get("问题列表", [])
+                        summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
                     except json.JSONDecodeError:
                         pass
 
-    # 兜底：根据 issues 计算 summary
-    if issues and summary.get("total", 0) == 0:
-        critical = sum(1 for i in issues if i.get("severity") == "critical")
-        warning = sum(1 for i in issues if i.get("severity") == "warning")
-        info = sum(1 for i in issues if i.get("severity") == "info")
+    # 兜底：根据 issues 计算 汇总
+    if issues and summary.get("总数", 0) == 0:
+        critical = sum(1 for i in issues if i.get("严重程度") == "critical")
+        warning = sum(1 for i in issues if i.get("严重程度") == "warning")
+        info = sum(1 for i in issues if i.get("严重程度") == "info")
         summary = {
-            "total": len(issues),
-            "critical": critical,
-            "warning": warning,
-            "info": info,
+            "总数": len(issues),
+            "严重": critical,
+            "警告": warning,
+            "提示": info,
         }
 
     # 验证每条 issue 必需字段
@@ -144,19 +144,19 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
     for iss in issues:
         if not isinstance(iss, dict):
             continue
-        if "type" not in iss or "description" not in iss:
+        if "类型" not in iss or "描述" not in iss:
             continue
         validated_issues.append({
-            "type": iss.get("type", "unknown"),
-            "severity": iss.get("severity", "info"),
-            "scene_ref": iss.get("scene_ref", ""),
-            "description": iss.get("description", ""),
-            "suggestion": iss.get("suggestion", ""),
-            "involved": iss.get("involved", []),
+            "类型": iss.get("类型", "unknown"),
+            "严重程度": iss.get("严重程度", "info"),
+            "关联场景": iss.get("关联场景", ""),
+            "描述": iss.get("描述", ""),
+            "建议": iss.get("建议", ""),
+            "涉及角色": iss.get("涉及角色", []),
         })
 
     return {
-        "issues": validated_issues,
-        "summary": summary,
-        "raw_response": raw,
+        "问题列表": validated_issues,
+        "汇总": summary,
+        "原始响应": raw,
     }

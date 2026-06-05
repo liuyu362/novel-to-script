@@ -566,7 +566,7 @@ def analyze_characters(req: AnalyzeCharactersRequest):
         "title": req.title or "未命名",
         "text_length": len(req.text),
         **result,
-    }, message=f"角色提取完成，共识别 {result['total']} 个角色")
+    }, message=f"角色提取完成，共识别 {result['总数']} 个角色")
 
 
 @app.post("/api/analyze/scenes")
@@ -585,7 +585,7 @@ def analyze_scenes(req: AnalyzeScenesRequest):
         "title": req.title or "未命名",
         "text_length": len(req.text),
         **result,
-    }, message=f"场景提取完成，共识别 {result['total']} 个场景")
+    }, message=f"场景提取完成，共识别 {result['总数']} 个场景")
 
 
 @app.post("/api/analyze/dialogue")
@@ -604,7 +604,7 @@ def analyze_dialogue(req: AnalyzeDialogueRequest):
         "title": req.title or "未命名",
         "text_length": len(req.text),
         **result,
-    }, message=f"对话分离完成，共 {result['dialogue_count']} 条对话 / {result['narration_count']} 段叙述")
+    }, message=f"对话分离完成，共 {result['对话数']} 条对话 / {result['叙述数']} 段叙述")
 
 
 @app.post("/api/convert/fusion")
@@ -622,13 +622,13 @@ def fusion_convert(req: FusionConvertRequest):
 
     result = generate_fusion_script(req.text, req.title, req.version)
 
-    msg_parts = [result["version"]]
-    ch = result["analysis"]["characters"]
-    sc = result["analysis"]["scenes"]
-    if ch.get("total"):
-        msg_parts.append(f"{ch['total']}个角色")
-    if sc.get("total"):
-        msg_parts.append(f"{sc['total']}个场景")
+    msg_parts = [result["版本"]]
+    ch = result["分析数据"]["角色分析"]
+    sc = result["分析数据"]["场景分析"]
+    if ch.get("总数"):
+        msg_parts.append(f"{ch['总数']}个角色")
+    if sc.get("总数"):
+        msg_parts.append(f"{sc['总数']}个场景")
 
     return success_response(result, message=f"融合生成完成（{' + '.join(msg_parts)}）")
 
@@ -645,15 +645,15 @@ def analyze_novel_endpoint(req: AnalyzeNovelRequest):
 
     result = analyze_novel(req.text)
 
-    summary = result["summary"]
+    summary = result["汇总"]
     return success_response({
         "title": req.title or "未命名",
         "text_length": len(req.text),
-        "characters": result["characters"],
-        "scenes": result["scenes"],
-        "dialogue": result["dialogue"],
-        "summary": summary,
-    }, message=f"解读完成：{summary['total_characters']}个角色、{summary['total_scenes']}个场景、{summary['total_dialogues']}条对话")
+        "角色分析": result["角色分析"],
+        "场景分析": result["场景分析"],
+        "对话分析": result["对话分析"],
+        "汇总": summary,
+    }, message=f"解读完成：{summary['角色总数']}个角色、{summary['场景总数']}个场景、{summary['对话总数']}条对话")
 
 
 @app.post("/api/check/logic")
@@ -671,12 +671,12 @@ def check_logic_endpoint(req: LogicCheckRequest):
 
     result = check_logic(req.script_yaml, req.original_text, req.title)
 
-    summary = result["summary"]
+    summary = result["汇总"]
     return success_response({
         "title": req.title or "未命名",
-        "issues": result["issues"],
-        "summary": summary,
-    }, message=f"检测完成：共发现 {summary['total']} 个问题（{summary['critical']}严重/{summary['warning']}警告/{summary['info']}提示）")
+        "问题列表": result["问题列表"],
+        "汇总": summary,
+    }, message=f"检测完成：共发现 {summary['总数']} 个问题（{summary['严重']}严重/{summary['警告']}警告/{summary['提示']}提示）")
 
 
 # ── 前端静态文件挂载 ──

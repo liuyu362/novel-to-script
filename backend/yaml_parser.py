@@ -1,5 +1,5 @@
 """
-YAML 解析器
+YAML 解析器（全中文字段名）
 将 LLM 输出的 YAML 文本解析为 Script 结构化对象
 支持容错：处理 LLM 输出的常见格式问题
 """
@@ -25,13 +25,13 @@ def _clean_llm_output(raw: str) -> str:
 
     # 去掉 LLM 有时在开头加的注释/说明
     lines = text.split("\n")
-    # 找到第一个非空、非注释、以缩进或 "meta" / "characters" / "scenes" 开头的行
+    # 找到第一个非空、非注释、以缩进或 "元信息" / "角色列表" / "场景列表" 开头的行
     start_idx = 0
     for i, line in enumerate(lines):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        if stripped.startswith(("meta:", "characters:", "scenes:")):
+        if stripped.startswith(("元信息:", "角色列表:", "场景列表:")):
             start_idx = i
             break
     text = "\n".join(lines[start_idx:])
@@ -59,38 +59,38 @@ def _parse_yaml(text: str) -> dict:
 def _dict_to_character(data: dict) -> Character:
     """字典 → Character 对象"""
     return Character(
-        id=data.get("id", 0),
-        name=data.get("name", "未知"),
-        aliases=data.get("aliases", []),
-        gender=data.get("gender", ""),
-        age=data.get("age", ""),
-        role_type=data.get("role_type", ""),
-        description=data.get("description", ""),
-        first_appearance=data.get("first_appearance", 0),
+        编号=data.get("编号", 0),
+        姓名=data.get("姓名", "未知"),
+        别名=data.get("别名", []),
+        性别=data.get("性别", ""),
+        年龄=data.get("年龄", ""),
+        角色类型=data.get("角色类型", ""),
+        描述=data.get("描述", ""),
+        首次出场=data.get("首次出场", 0),
     )
 
 
 def _dict_to_act(data: dict) -> Act:
     """字典 → Act 对象"""
     return Act(
-        type=data.get("type", "action"),
-        content=data.get("content", ""),
-        character=data.get("character", ""),
-        emotion=data.get("emotion", ""),
-        note=data.get("note", ""),
+        类型=data.get("类型", "动作"),
+        文本=data.get("文本", ""),
+        角色=data.get("角色", ""),
+        情绪=data.get("情绪", ""),
+        备注=data.get("备注", ""),
     )
 
 
 def _dict_to_scene(data: dict) -> Scene:
     """字典 → Scene 对象"""
     return Scene(
-        id=data.get("id", 0),
-        name=data.get("name", "未命名场景"),
-        location=data.get("location", ""),
-        time=data.get("time", ""),
-        weather=data.get("weather", ""),
-        characters=data.get("characters", []),
-        acts=[_dict_to_act(a) for a in data.get("acts", [])],
+        编号=data.get("编号", 0),
+        名称=data.get("名称", "未命名场景"),
+        地点=data.get("地点", ""),
+        时间=data.get("时间", ""),
+        天气=data.get("天气", ""),
+        出场角色=data.get("出场角色", []),
+        内容=[_dict_to_act(a) for a in data.get("内容", [])],
     )
 
 
@@ -113,30 +113,30 @@ def parse_yaml_to_script(raw_output: str, source_title: str = "") -> Script:
     if not isinstance(data, dict):
         raise AppException(ErrorCode.YAML_INVALID, "YAML 解析结果不是字典结构")
 
-    # 解析 meta
-    meta_dict = data.get("meta", {})
+    # 解析 元信息
+    meta_dict = data.get("元信息", {})
     meta = Meta(
-        title=meta_dict.get("title", f"{source_title}·剧本"),
-        source_title=source_title or meta_dict.get("source_title", ""),
-        version=meta_dict.get("version", "movie"),
-        total_scenes=meta_dict.get("total_scenes", 0),
-        character_count=meta_dict.get("character_count", 0),
+        标题=meta_dict.get("标题", f"{source_title}·剧本"),
+        原著作=source_title or meta_dict.get("原著作", ""),
+        版本=meta_dict.get("版本", "电影版"),
+        总场景数=meta_dict.get("总场景数", 0),
+        角色数量=meta_dict.get("角色数量", 0),
     )
 
-    # 解析 characters
+    # 解析 角色列表
     characters = [
-        _dict_to_character(c) for c in data.get("characters", [])
+        _dict_to_character(c) for c in data.get("角色列表", [])
     ]
 
-    # 解析 scenes
+    # 解析 场景列表
     scenes = [
-        _dict_to_scene(s) for s in data.get("scenes", [])
+        _dict_to_scene(s) for s in data.get("场景列表", [])
     ]
 
-    script = Script(meta=meta, characters=characters, scenes=scenes)
+    script = Script(元信息=meta, 角色列表=characters, 场景列表=scenes)
 
     # 校验：至少有一个场景
-    if not script.scenes:
+    if not script.场景列表:
         raise AppException(ErrorCode.YAML_INVALID, "剧本中没有有效场景数据")
 
     return script

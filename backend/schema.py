@@ -1,5 +1,5 @@
 """
-剧本 Schema 的 Python 数据类定义
+剧本 Schema 的 Python 数据类定义（全中文字段名）
 与 schema.yaml 保持一致，供后端序列化/反序列化使用
 """
 from dataclasses import dataclass, field, asdict
@@ -10,55 +10,55 @@ from datetime import datetime
 @dataclass
 class Act:
     """场景中的一个动作/对话单元"""
-    type: str           # action | dialogue | direction
-    content: str        # 内容文本
-    character: str = ""  # 关联角色名
-    emotion: str = ""    # 情绪/语气
-    note: str = ""       # 补充说明
+    类型: str           # 动作 | 对白 | 导演指示
+    文本: str           # 内容文本
+    角色: str = ""      # 关联角色名
+    情绪: str = ""      # 情绪/语气
+    备注: str = ""      # 补充说明
 
 
 @dataclass
 class Character:
     """角色信息"""
-    id: int
-    name: str
-    aliases: list[str] = field(default_factory=list)
-    gender: str = ""
-    age: str = ""
-    role_type: str = ""          # 主角 | 配角 | 反派 | 路人
-    description: str = ""
-    first_appearance: int = 0    # 首次出场场景ID
+    编号: int
+    姓名: str
+    别名: list[str] = field(default_factory=list)
+    性别: str = ""
+    年龄: str = ""
+    角色类型: str = ""          # 主角 | 配角 | 反派 | 路人
+    描述: str = ""
+    首次出场: int = 0           # 首次出场场景编号
 
 
 @dataclass
 class Scene:
     """单个场景"""
-    id: int
-    name: str
-    location: str = ""
-    time: str = ""
-    weather: str = ""
-    characters: list[str] = field(default_factory=list)
-    acts: list[Act] = field(default_factory=list)
+    编号: int
+    名称: str
+    地点: str = ""
+    时间: str = ""
+    天气: str = ""
+    出场角色: list[str] = field(default_factory=list)
+    内容: list[Act] = field(default_factory=list)
 
 
 @dataclass
 class Meta:
     """剧本元信息"""
-    title: str = ""
-    source_title: str = ""
-    version: str = "movie"       # movie | tv_series | stage_play
-    total_scenes: int = 0
-    character_count: int = 0
-    generated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    标题: str = ""
+    原著作: str = ""
+    版本: str = "电影版"       # 电影版 | 电视剧版 | 舞台剧版
+    总场景数: int = 0
+    角色数量: int = 0
+    生成时间: str = field(default_factory=lambda: datetime.now().isoformat())
 
 
 @dataclass
 class Script:
     """剧本顶层结构"""
-    meta: Meta = field(default_factory=Meta)
-    characters: list[Character] = field(default_factory=list)
-    scenes: list[Scene] = field(default_factory=list)
+    元信息: Meta = field(default_factory=Meta)
+    角色列表: list[Character] = field(default_factory=list)
+    场景列表: list[Scene] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """转为字典（用于 YAML 序列化）"""
@@ -67,16 +67,16 @@ class Script:
     def stats(self) -> dict:
         """快速统计"""
         return {
-            "scenes": len(self.scenes),
-            "characters": len(self.characters),
-            "total_acts": sum(len(s.acts) for s in self.scenes),
-            "dialogue_count": sum(
-                sum(1 for a in s.acts if a.type == "dialogue")
-                for s in self.scenes
+            "场景数": len(self.场景列表),
+            "角色数": len(self.角色列表),
+            "总内容条数": sum(len(s.内容) for s in self.场景列表),
+            "对白条数": sum(
+                sum(1 for a in s.内容 if a.类型 == "对白")
+                for s in self.场景列表
             ),
-            "action_count": sum(
-                sum(1 for a in s.acts if a.type == "action")
-                for s in self.scenes
+            "动作条数": sum(
+                sum(1 for a in s.内容 if a.类型 == "动作")
+                for s in self.场景列表
             ),
         }
 
@@ -96,4 +96,3 @@ SCRIPT_VERSIONS = {
         "description": "有限场景，强化对话冲突，适合现场演出",
     },
 }
-
