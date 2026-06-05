@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from backend.config import is_llm_ready, DEEPSEEK_MODEL
+
 app = FastAPI(
     title="Novel to Script API",
     description="将小说文本转换为结构化剧本的 AI 工具",
@@ -29,8 +31,13 @@ def root():
 
 @app.get("/api/health")
 def health_check():
-    """健康检查接口"""
-    return {"status": "ok", "service": "novel-to-script"}
+    """健康检查接口，包含 LLM 连接状态"""
+    return {
+        "status": "ok",
+        "service": "novel-to-script",
+        "llm_ready": is_llm_ready(),
+        "llm_model": DEEPSEEK_MODEL,
+    }
 
 
 class ConvertRequest(BaseModel):
