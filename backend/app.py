@@ -300,6 +300,10 @@ class AnalyzeNovelRequest(BaseModel):
         max_length=200,
         description="小说标题（可选）",
     )
+    chapter_wise: bool = Field(
+        default=True,
+        description="是否按章节逐章分析（长文本建议开启）",
+    )
 
 
 class LogicCheckRequest(BaseModel):
@@ -637,23 +641,37 @@ def fusion_convert(req: FusionConvertRequest):
 def analyze_novel_endpoint(req: AnalyzeNovelRequest):
     """综合解读小说
 
-    串联角色提取 + 场景提取 + 对话分离三阶段分析，
-    一次性返回完整解读报告。
+    支持两种模式：
+    - chapter_wise=True（默认）：先按章节分割，逐章分析后合并，适合长文本
+    - chapter_wise=False：全文一次性分析，适合短文本
     """
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
-    result = analyze_novel(req.text)
+    result = analyze_novel(req.text, chapter_wise=req.chapter_wise)
 
     summary = result["汇总"]
-    return success_response({
+    chapter_info = result.get("分章信息", {})
+
+    response_data = {
         "title": req.title or "未命名",
         "text_length": len(req.text),
         "角色分析": result["角色分析"],
         "场景分析": result["场景分析"],
         "对话分析": result["对话分析"],
         "汇总": summary,
-    }, message=f"解读完成：{summary['角色总数']}个角色、{summary['场景总数']}个场景、{summary['对话总数']}条对话")
+    }
+    if chapter_info:
+        response_data["分章信息"] = chapter_info
+
+    chapter_msg = ""
+    if chapter_info:
+        chapter_msg = f"分{chapter_info['章节数']}章处理，"
+
+    return success_response(
+        response_data,
+        message=f"解读完成：{chapter_msg}{summary['角色总数']}个角色、{summary['场景总数']}个场景、{summary['对话总数']}条对话"
+    )
 
 
 @app.post("/api/check/logic")
