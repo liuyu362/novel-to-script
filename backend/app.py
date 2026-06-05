@@ -11,13 +11,14 @@ from typing import Any, Optional
 
 from backend.config import is_llm_ready, DEEPSEEK_MODEL
 from backend.llm_client import call_llm
-from backend.prompts import SYSTEM_PROMPT, build_user_prompt
+from backend.prompts import SYSTEM_PROMPT, build_user_prompt, build_yaml_prompt
 from backend.errors import ErrorCode, ERROR_MESSAGES, AppException
+from backend.yaml_parser import parse_yaml_to_script, script_to_yaml
 
 app = FastAPI(
     title="Novel to Script API",
     description="将小说文本转换为结构化剧本的 AI 工具",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 
@@ -61,7 +62,6 @@ async def app_exception_handler(request: Request, exc: AppException):
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """将 FastAPI 的 HTTPException 转为统一格式"""
-    # 根据 status_code 映射到自定义错误码
     code_map = {
         400: ErrorCode.INVALID_PARAMS,
         422: ErrorCode.INVALID_PARAMS,
@@ -83,7 +83,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """捕获 Pydantic 参数校验失败（422），转为统一错误格式"""
-    # 提取第一个错误信息
     try:
         first_err = exc.errors()[0]
         loc = " → ".join(str(x) for x in first_err.get("loc", []))
@@ -114,7 +113,7 @@ def root():
     """根路径"""
     return success_response({
         "service": "novel-to-script",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "docs": "/docs",
     })
 
@@ -125,7 +124,7 @@ def health_check():
     return success_response({
         "status": "ok",
         "service": "novel-to-script",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "llm_ready": is_llm_ready(),
         "llm_model": DEEPSEEK_MODEL,
     })
@@ -138,28 +137,62 @@ class ConvertRequest(BaseModel):
         min_length=50,
         max_length=500000,
         description="小说原文内容，最少50字，最多50万字",
-        examples=["第一章 山谷奇遇 林风醒来时，发现自己躺在一座陌生的山谷中。四周竹林环绕，雾气缭绕，远处传来清脆的鸟鸣声。他揉了揉眼睛，试图回忆发生了什么。最后的记忆是参加宗门大比，然后一道刺目的光芒闪过...醒了？一个清冷的女声传来。林风猛地坐起，只见一位白衣少女站在三步之外，手中握着一柄泛着寒光的长剑。"],
     )
     title: str = Field(
         default="",
         max_length=200,
         description="小说标题（可选）",
     )
+    output_format: str = Field(
+        default="yaml",
+        description="输出格式：yaml（结构化）或 text（纯文本）",
+    )
 
 
 @app.post("/api/convert")
 def convert_novel(req: ConvertRequest):
-    """接收小说文本，调用 LLM 生成剧本，返回统一格式"""
+    """接收小说文本，调用 LLM 生成结构化剧本"""
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
-    user_prompt = build_user_prompt(req.text, req.title)
-    result = call_llm(SYSTEM_PROMPT, user_prompt)
+    # 根据格式选择 Prompt
+    if req.output_format == "yaml":
+        user_prompt = build_yaml_prompt(req.text, req.title)
+    else:
+        user_prompt = build_user_prompt(req.text, req.title)
 
+    raw_result = call_llm(SYSTEM_PROMPT, user_prompt)
+
+    # YAML 格式：解析为结构化数据
+    if req.output_format == "yaml":
+        try:
+            script = parse_yaml_to_script(raw_result, source_title=req.title or "")
+            script_yaml = script_to_yaml(script)
+            stats = script.stats()
+            return success_response({
+                "text_length": len(req.text),
+                "title": req.title or "未命名",
+                "format": "yaml",
+                "script_yaml": script_yaml,
+                "script_stats": stats,
+                "model": DEEPSEEK_MODEL,
+            }, message="剧本生成完成（结构化 YAML）")
+        except AppException:
+            return success_response({
+                "text_length": len(req.text),
+                "title": req.title or "未命名",
+                "format": "text_fallback",
+                "script": raw_result,
+                "warning": "YAML 解析失败，返回原始文本，请检查或重试",
+                "model": DEEPSEEK_MODEL,
+            }, message="剧本生成完成（YAML 解析失败，已降级）")
+
+    # 纯文本格式：直接返回
     return success_response({
         "text_length": len(req.text),
         "title": req.title or "未命名",
-        "script": result,
+        "format": "text",
+        "script": raw_result,
         "model": DEEPSEEK_MODEL,
     }, message="剧本生成完成")
 
@@ -167,4 +200,3 @@ def convert_novel(req: ConvertRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
-
