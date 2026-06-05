@@ -2,10 +2,12 @@
 AI 小说转剧本工具 - 后端服务
 基于 FastAPI 框架
 """
+import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
@@ -116,16 +118,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.get("/")
-def root():
-    """根路径"""
-    return success_response({
-        "service": "novel-to-script",
-        "version": "0.6.0",
-        "docs": "/docs",
-    })
 
 
 @app.get("/api/health")
@@ -601,6 +593,21 @@ def fusion_convert(req: FusionConvertRequest):
         msg_parts.append(f"{sc['total']}个场景")
 
     return success_response(result, message=f"融合生成完成（{' + '.join(msg_parts)}）")
+
+
+# ── 前端静态文件挂载 ──
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.isdir(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend_static")
+
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """SPA 路由：所有非 /api 的 GET 请求返回前端入口（包括根路径 /）"""
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return JSONResponse({"message": "Frontend not found"}, status_code=404)
 
 
 if __name__ == "__main__":

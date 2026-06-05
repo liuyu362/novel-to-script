@@ -4,9 +4,295 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 小说转剧本工具</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --border: #e2e6ea;
+            --text: #212529;
+            --text-secondary: #6c757d;
+            --primary: #4a6cf7;
+            --primary-hover: #3b5de7;
+            --primary-light: #eef1ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --radius: 10px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .header .api-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+        .dot.online { background: var(--success); }
+        .dot.offline { background: #ef4444; }
+        .dot.checking { background: var(--warning); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* ── Step Navigation ── */
+        .steps {
+            display: flex;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .step {
+            flex: 1;
+            min-width: 100px;
+            padding: 14px 16px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .step:hover { color: var(--text); }
+        .step.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        .step.completed {
+            color: var(--success);
+        }
+        .step .step-num {
+            display: inline-block;
+            width: 22px; height: 22px;
+            line-height: 22px;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: 700;
+            margin-right: 6px;
+            background: var(--border);
+            color: var(--text-secondary);
+        }
+        .step.active .step-num { background: var(--primary); color: #fff; }
+        .step.completed .step-num { background: var(--success); color: #fff; }
+
+        /* ── Main Content ── */
+        .main {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+        .page {
+            display: none;
+            flex: 1;
+            padding: 28px;
+            overflow-y: auto;
+        }
+        .page.active { display: flex; flex-direction: column; }
+
+        /* ── Card ── */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        /* ── Placeholder ── */
+        .placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .placeholder .line {
+            width: 40px; height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            margin-bottom: 16px;
+        }
+        .placeholder p { font-size: 14px; line-height: 1.6; }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .steps { padding: 0 8px; }
+            .step { padding: 10px 8px; font-size: 11px; }
+            .step .step-num { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
+            .page { padding: 16px; }
+        }
+    </style>
 </head>
 <body>
+
+<header class="header">
     <h1>AI 小说转剧本工具</h1>
-    <p>后端 API：<a href="http://localhost:8000">http://localhost:8000</a></p>
+    <span class="api-status">
+        <span class="dot checking" id="statusDot"></span>
+        <span id="statusText">检测中...</span>
+    </span>
+</header>
+
+<nav class="steps" id="steps">
+    <div class="step active" data-page="upload">
+        <span class="step-num">1</span>上传解读
+    </div>
+    <div class="step" data-page="characters">
+        <span class="step-num">2</span>角色场景
+    </div>
+    <div class="step" data-page="adapt">
+        <span class="step-num">3</span>剧本改编
+    </div>
+    <div class="step" data-page="detect">
+        <span class="step-num">4</span>逻辑检测
+    </div>
+    <div class="step" data-page="export">
+        <span class="step-num">5</span>导出下载
+    </div>
+</nav>
+
+<main class="main">
+
+    <section class="page active" id="page-upload">
+        <div class="card">
+            <h3>上传解读</h3>
+            <div class="placeholder">
+                <div class="line"></div>
+                <p>在此页面上传小说文本进行 AI 解读</p>
+                <p style="margin-top:8px;font-size:12px">PR16 实现</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="page" id="page-characters">
+        <div class="card">
+            <h3>角色与场景确认</h3>
+            <div class="placeholder">
+                <div class="line"></div>
+                <p>查看 AI 提取的角色和场景清单，并确认或编辑</p>
+                <p style="margin-top:8px;font-size:12px">PR17 实现</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="page" id="page-adapt">
+        <div class="card">
+            <h3>逐场景剧本改编</h3>
+            <div class="placeholder">
+                <div class="line"></div>
+                <p>逐场景进行精细化的剧本转换</p>
+                <p style="margin-top:8px;font-size:12px">PR18 实现</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="page" id="page-detect">
+        <div class="card">
+            <h3>逻辑矛盾检测</h3>
+            <div class="placeholder">
+                <div class="line"></div>
+                <p>检测剧本中的逻辑矛盾（角色消失、时间跳跃等）</p>
+                <p style="margin-top:8px;font-size:12px">PR19 实现</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="page" id="page-export">
+        <div class="card">
+            <h3>导出下载</h3>
+            <div class="placeholder">
+                <div class="line"></div>
+                <p>多格式导出最终剧本（YAML / JSON / TXT）</p>
+                <p style="margin-top:8px;font-size:12px">PR20 实现</p>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+const API_BASE = '';
+
+// ── API 状态检测 ──
+const dot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+fetch('/api/health')
+    .then(r => r.json())
+    .then(d => {
+        dot.className = 'dot online';
+        statusText.textContent = 'API v' + (d.data?.version || '?') + ' 在线';
+    })
+    .catch(() => {
+        dot.className = 'dot offline';
+        statusText.textContent = 'API 离线';
+    });
+
+// ── 步骤导航 ──
+const steps = document.querySelectorAll('#steps .step');
+let currentPage = 'upload';
+
+steps.forEach(step => {
+    step.addEventListener('click', () => {
+        const page = step.dataset.page;
+        if (page === currentPage) return;
+        navigateTo(page);
+    });
+});
+
+function navigateTo(page) {
+    document.getElementById('page-' + currentPage).classList.remove('active');
+    document.getElementById('page-' + page).classList.add('active');
+
+    steps.forEach(s => {
+        s.classList.remove('active');
+        if (s.dataset.page === page) s.classList.add('active');
+    });
+
+    currentPage = page;
+}
+
+function markCompleted(stepIndex) {
+    for (let i = 0; i < Math.min(stepIndex, steps.length); i++) {
+        steps[i].classList.add('completed');
+    }
+}
+</script>
+
 </body>
 </html>
