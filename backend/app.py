@@ -20,6 +20,7 @@ from backend.version_prompts import (
     build_versioned_yaml_prompt, get_version_prompt,
     VERSION_NAMES, VALID_VERSIONS,
 )
+from backend.character_extractor import extract_characters
 
 app = FastAPI(
     title="Novel to Script API",
@@ -222,6 +223,21 @@ class BatchConvertRequest(BaseModel):
     version: str = Field(
         default="movie",
         description="剧本版本：movie（电影版）、tv_series（电视剧版）、stage_play（舞台剧版）",
+    )
+
+
+class AnalyzeCharactersRequest(BaseModel):
+    """角色提取请求体"""
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文内容",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="小说标题（可选）",
     )
 
 
@@ -450,6 +466,25 @@ def batch_convert(req: BatchConvertRequest):
         "chapters": chapter_results,
         "model": DEEPSEEK_MODEL,
     }, message=f"批量转换完成（{success_count}/{total} 成功）")
+
+
+@app.post("/api/analyze/characters")
+def analyze_characters(req: AnalyzeCharactersRequest):
+    """角色列表自动提取
+
+    从小说文本中识别所有出场角色，
+    输出姓名、性别、年龄、角色类型、描述等结构化信息。
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    result = extract_characters(req.text)
+
+    return success_response({
+        "title": req.title or "未命名",
+        "text_length": len(req.text),
+        **result,
+    }, message=f"角色提取完成，共识别 {result['total']} 个角色")
 
 
 if __name__ == "__main__":
