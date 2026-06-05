@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from backend.config import is_llm_ready, DEEPSEEK_MODEL
+from backend.llm_client import call_llm
+from backend.prompts import SYSTEM_PROMPT, build_user_prompt
 
 app = FastAPI(
     title="Novel to Script API",
@@ -62,17 +64,29 @@ class ConvertResponse(BaseModel):
     message: str
     text_length: int
     title: str
+    script: str = ""
+    model: str = ""
 
 
 @app.post("/api/convert", response_model=ConvertResponse)
 def convert_novel(req: ConvertRequest):
-    """接收小说文本，验证参数，返回确认信息"""
-    return ConvertResponse(
-        success=True,
-        message=f"文本已接收，共 {len(req.text)} 字",
-        text_length=len(req.text),
-        title=req.title or "未命名",
-    )
+    """接收小说文本，调用 LLM 生成剧本"""
+    if not is_llm_ready():
+        raise HTTPException(status_code=503, detail="LLM 服务未就绪，请先配置 API Key")
+
+    try:
+        user_prompt = build_user_prompt(req.text, req.title)
+        result = call_llm(SYSTEM_PROMPT, user_prompt)
+        return ConvertResponse(
+            success=True,
+            message="剧本生成完成",
+            text_length=len(req.text),
+            title=req.title or "未命名",
+            script=result,
+            model=DEEPSEEK_MODEL,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM 调用失败: {str(e)}")
 
 
 if __name__ == "__main__":
