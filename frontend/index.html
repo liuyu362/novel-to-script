@@ -720,6 +720,151 @@
             color: var(--primary);
         }
 
+        /* 已处理的问题 */
+        .issue-card.resolved {
+            opacity: 0.55;
+            border-left-color: var(--success) !important;
+            background: #f0fdf4;
+        }
+        .issue-card.resolved .issue-desc { text-decoration: line-through; }
+
+        /* 问题操作按钮 */
+        .issue-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-issue {
+            padding: 5px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .btn-issue:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-issue.btn-fix {
+            background: var(--success);
+            color: #fff;
+            border-color: var(--success);
+            font-weight: 600;
+        }
+        .btn-issue.btn-fix:hover { opacity: 0.85; }
+        .btn-issue.btn-done {
+            background: #f0fdf4;
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        /* 修复预览面板 */
+        .fix-preview {
+            display: none;
+            margin-top: 10px;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+        }
+        .fix-preview.show { display: block; }
+        .fix-preview .fix-section {
+            margin-bottom: 8px;
+        }
+        .fix-preview .fix-label {
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .fix-preview .fix-code {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-family: "Cascadia Code", Consolas, monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 11px;
+            line-height: 1.5;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .fix-preview .fix-code del {
+            color: #f87171;
+            text-decoration: line-through;
+        }
+        .fix-preview .fix-code ins {
+            color: #4ade80;
+            text-decoration: none;
+        }
+        .fix-preview .fix-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        /* 修复确认弹窗 */
+        .fix-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .fix-modal-overlay.show { display: flex; }
+        .fix-modal {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 620px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .fix-modal h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+        .fix-modal .fix-diff-row {
+            margin-bottom: 14px;
+        }
+        .fix-modal .btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        /* 处理进度条 */
+        .resolve-progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .resolve-progress .progress-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .resolve-progress .progress-fill {
+            height: 100%;
+            background: var(--success);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
         /* ── Export Page ── */
         .export-overview {
             display: grid;
@@ -1036,6 +1181,12 @@
             <!-- 结果面板 -->
             <div class="card hidden" id="detectResultPanel" style="margin-top:16px">
                 <div class="adapt-section-title">检测结果</div>
+
+                <!-- 处理进度 -->
+                <div class="resolve-progress" id="resolveProgress" style="display:none">
+                    <span>已处理 <strong id="resolveCount">0</strong>/<span id="resolveTotal">0</span></span>
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                </div>
 
                 <!-- 统计概览 -->
                 <div class="detect-summary" id="detectSummary"></div>
@@ -1719,6 +1870,8 @@ function downloadScript() {
 // ── 逻辑检测 ──
 let detectIssues = [];
 let detectCurrentFilter = 'all';
+let issueStates = {};       // { index: 'pending' | 'fixed' | 'ignored' }
+let pendingFixIdx = -1;     // 当前等待确认的修复 issue 索引
 
 function loadDetectData() {
     const scriptRaw = localStorage.getItem('novelScript');
@@ -1778,6 +1931,7 @@ async function startDetect() {
         }
 
         renderDetectResult(data.data);
+        localStorage.setItem('novelLogic', JSON.stringify(data.data));
         markCompleted(4);
     } catch (err) {
         alert('请求失败: ' + err.message);
@@ -1790,6 +1944,8 @@ async function startDetect() {
 function renderDetectResult(data) {
     detectIssues = data.问题列表 || [];
     detectCurrentFilter = 'all';
+    issueStates = {};
+    detectIssues.forEach((_, i) => { issueStates[i] = 'pending'; });
 
     const summary = data.汇总 || { 总数: 0, 严重: 0, 警告: 0, 提示: 0 };
 
@@ -1851,13 +2007,31 @@ const SEVERITY_NAMES = {
 };
 
 function renderIssueList(issues) {
-    document.getElementById('issueList').innerHTML = issues.map((iss, i) => {
+    // 更新进度条
+    const total = detectIssues.length;
+    const resolved = Object.values(issueStates).filter(s => s === 'fixed').length;
+    const progBar = document.getElementById('resolveProgress');
+    if (total > 0) {
+        progBar.style.display = 'flex';
+        document.getElementById('resolveCount').textContent = resolved;
+        document.getElementById('resolveTotal').textContent = total;
+        document.getElementById('progressFill').style.width = (resolved / total * 100) + '%';
+    }
+
+    // 计算当前筛选视图中的实际索引
+    const indexMap = issues.map(iss => detectIssues.indexOf(iss));
+
+    document.getElementById('issueList').innerHTML = issues.map((iss, viewIdx) => {
+        const realIdx = indexMap[viewIdx];
+        const state = issueStates[realIdx] || 'pending';
+        const resolved = state === 'fixed';
         const sevClass = 'severity-' + iss.严重程度;
         const typeClass = TYPE_CSS[iss.类型] || '';
         const issueClass = (iss.严重程度 === 'critical' ? 'critical-issue' :
                            iss.严重程度 === 'warning' ? 'warning-issue' : 'info-issue');
+        const hasFix = iss.修复操作 && iss.修复操作.查找文本 && iss.修复操作.替换为;
 
-        return '<div class="issue-card ' + issueClass + '">' +
+        return '<div class="issue-card ' + issueClass + (resolved ? ' resolved' : '') + '" id="issue-' + realIdx + '">' +
             '<div class="issue-header">' +
                 '<span class="type-label ' + typeClass + '">' +
                     esc(TYPE_NAMES[iss.类型] || iss.类型) +
@@ -1866,12 +2040,33 @@ function renderIssueList(issues) {
                     esc(SEVERITY_NAMES[iss.严重程度] || iss.严重程度) +
                 '</span>' +
                 (iss.关联场景 ? '<span style="font-size:11px;color:var(--text-secondary)">' + esc(iss.关联场景) + '</span>' : '') +
+                (resolved ? '<span style="font-size:11px;color:var(--success);margin-left:auto">✓ 已处理</span>' : '') +
             '</div>' +
             '<div class="issue-desc">' + esc(iss.描述) + '</div>' +
             (iss.涉及角色 && iss.涉及角色.length ?
                 '<div class="issue-meta">涉及: ' + iss.涉及角色.map(esc).join(', ') + '</div>' : '') +
             (iss.建议 ?
                 '<div class="issue-suggestion">' + esc(iss.建议) + '</div>' : '') +
+            // 修复预览面板
+            (hasFix ? '<div class="fix-preview" id="fixPreview-' + realIdx + '">' +
+                '<div class="fix-section">' +
+                    '<div class="fix-label">查找文本：</div>' +
+                    '<div class="fix-code">' + esc(iss.修复操作.查找文本) + '</div>' +
+                '</div>' +
+                '<div class="fix-section">' +
+                    '<div class="fix-label">替换为：</div>' +
+                    '<div class="fix-code">' + esc(iss.修复操作.替换为) + '</div>' +
+                '</div>' +
+                '<div class="fix-actions">' +
+                    '<button class="btn-issue btn-fix" onclick="openFixModal(' + realIdx + ')">⚡ 一键修复</button>' +
+                '</div>' +
+            '</div>' : '') +
+            // 操作按钮
+            '<div class="issue-actions">' +
+                (hasFix ? '<button class="btn-issue btn-fix" onclick="toggleFixPreview(' + realIdx + ')">查看修复</button>' : '') +
+                '<button class="btn-issue" onclick="jumpToScene(' + realIdx + ')">跳转修改</button>' +
+                '<button class="btn-issue ' + (resolved ? 'btn-done' : '') + '" onclick="toggleIssueStatus(' + realIdx + ')">' + (resolved ? '撤销处理' : '标记已处理') + '</button>' +
+            '</div>' +
         '</div>';
     }).join('');
 }
@@ -1890,6 +2085,175 @@ function filterIssues(filter) {
         document.getElementById('issueList').innerHTML = '<div class="empty-hint">该类别没有问题</div>';
     } else {
         renderIssueList(filtered);
+    }
+}
+
+// ── 问题操作函数 ──
+
+function toggleFixPreview(idx) {
+    const panel = document.getElementById('fixPreview-' + idx);
+    if (!panel) return;
+    panel.classList.toggle('show');
+}
+
+function toggleIssueStatus(idx) {
+    const current = issueStates[idx] || 'pending';
+    issueStates[idx] = current === 'fixed' ? 'pending' : 'fixed';
+    // 重新渲染当前筛选视图
+    const filter = detectCurrentFilter;
+    const filtered = filter === 'all' ? detectIssues :
+        detectIssues.filter(i => i.类型 === filter);
+    renderIssueList(filtered);
+}
+
+function jumpToScene(idx) {
+    const iss = detectIssues[idx];
+    if (!iss) return;
+    const scene = iss.关联场景 || '';
+    const findText = iss.修复操作?.查找文本 || scene;
+
+    // 切换到剧本改编页
+    navigateTo(3);
+
+    // 延迟执行：等页面切换完成
+    setTimeout(() => {
+        let textarea = document.getElementById('scriptEditor');
+        const outputDiv = document.getElementById('scriptOutput');
+
+        // 如果没有 textarea（PR22 未合并），尝试从 localStorage 加载并提示
+        if (!textarea) {
+            const raw = localStorage.getItem('novelScript');
+            if (!raw) {
+                alert('请先生成剧本（第3步），然后再使用跳转功能');
+                return;
+            }
+            try {
+                const d = JSON.parse(raw);
+                const yaml = d.剧本?.yaml文本 || '';
+                if (outputDiv && yaml) {
+                    // 用 YAML 高亮渲染，然后尝试滚动定位
+                    const highlighted = yaml
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        .replace(/^(#.*)$/gm, '<span class="yaml-comment">$1</span>')
+                        .replace(/^(\s*)([\w\u4e00-\u9fff\-]+)(\s*:)/gm,
+                            '$1<span class="yaml-key">$2</span>$3');
+                    outputDiv.innerHTML = highlighted;
+                    document.getElementById('scriptOutputCard').classList.remove('hidden');
+
+                    // 在渲染后的 HTML 中搜索并定位
+                    let pos = yaml.indexOf(scene);
+                    if (pos === -1 && findText) pos = yaml.indexOf(findText.substring(0, 20));
+                    if (pos >= 0) {
+                        outputDiv.scrollTop = Math.max(0, (yaml.substring(0, pos).split('\n').length - 3) * 24);
+                        alert('已定位到 "' + (scene || findText) + '"，请在剧本编辑区手动修改（可在第3步使用文本编辑模式）');
+                    } else {
+                        alert('未在剧本中找到对应位置，建议手动搜索 "' + scene + '"');
+                    }
+                }
+            } catch(e) {}
+            return;
+        }
+
+        // textarea 模式（PR22 已合并）
+        if (!textarea.value) {
+            const raw = localStorage.getItem('novelScript');
+            if (raw) {
+                try {
+                    const d = JSON.parse(raw);
+                    textarea.value = d.剧本?.yaml文本 || '';
+                } catch(e) {}
+            }
+        }
+        if (!textarea.value) {
+            alert('请先生成剧本（第3步）');
+            return;
+        }
+
+        const text = textarea.value;
+        let pos = -1;
+        if (scene) pos = text.indexOf(scene);
+        if (pos === -1 && findText) {
+            const snippet = findText.substring(0, Math.min(20, findText.length));
+            pos = text.indexOf(snippet);
+        }
+        if (pos === -1 && scene) {
+            const keyword = scene.split(/[：:_ ]/)[0];
+            if (keyword.length >= 2) pos = text.indexOf(keyword);
+        }
+
+        if (pos >= 0) {
+            textarea.focus();
+            textarea.setSelectionRange(pos, pos + (scene || findText).length);
+            const lineNum = text.substring(0, pos).split('\n').length;
+            textarea.scrollTop = Math.max(0, (lineNum - 3) * 20);
+        } else if (scene) {
+            alert('未在剧本中找到 "' + scene + '"，请手动搜索');
+        }
+    }, 200);
+}
+
+// ── 修复确认弹窗 ──
+
+function openFixModal(idx) {
+    const iss = detectIssues[idx];
+    if (!iss || !iss.修复操作) return;
+    pendingFixIdx = idx;
+    document.getElementById('fixIssueDesc').textContent = iss.描述;
+    document.getElementById('fixFrom').textContent = iss.修复操作.查找文本;
+    document.getElementById('fixTo').textContent = iss.修复操作.替换为;
+    document.getElementById('btnConfirmFix').onclick = function() { applyFix(idx); };
+    document.getElementById('fixModal').classList.add('show');
+}
+
+function closeFixModal() {
+    document.getElementById('fixModal').classList.remove('show');
+    pendingFixIdx = -1;
+}
+
+function applyFix(idx) {
+    const iss = detectIssues[idx];
+    if (!iss || !iss.修复操作) return;
+
+    const raw = localStorage.getItem('novelScript');
+    if (!raw) {
+        alert('未找到剧本数据，请先生成剧本');
+        closeFixModal();
+        return;
+    }
+
+    try {
+        const data = JSON.parse(raw);
+        const yaml = data.剧本?.yaml文本 || '';
+        const findText = iss.修复操作.查找文本;
+        const replaceText = iss.修复操作.替换为;
+
+        if (yaml.indexOf(findText) === -1) {
+            alert('未在剧本中找到对应文本，可能已被修改。请使用"跳转修改"手动处理。');
+            closeFixModal();
+            return;
+        }
+
+        const newYaml = yaml.replace(findText, replaceText);
+        data.剧本.yaml文本 = newYaml;
+        localStorage.setItem('novelScript', JSON.stringify(data));
+
+        // 标记为已处理
+        issueStates[idx] = 'fixed';
+        closeFixModal();
+
+        // 重新渲染
+        const filter = detectCurrentFilter;
+        const filtered = filter === 'all' ? detectIssues :
+            detectIssues.filter(i => i.类型 === filter);
+        renderIssueList(filtered);
+
+        // 也更新适配页的 textarea（如果可见）
+        const textarea = document.getElementById('scriptEditor');
+        if (textarea) textarea.value = newYaml;
+
+    } catch(e) {
+        alert('修复失败: ' + e.message);
+        closeFixModal();
     }
 }
 
@@ -2206,6 +2570,27 @@ navigateTo = function(page) {
     if (page === 'export') loadExportData();
 };
 </script>
+
+<!-- 修复确认弹窗 -->
+<div class="fix-modal-overlay" id="fixModal">
+    <div class="fix-modal">
+        <h3>确认修复</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:4px" id="fixIssueDesc"></p>
+        <p style="font-size:11px;color:var(--warning);margin-bottom:12px">以下修改将直接应用到剧本中，确认后可在剧本改编页撤销</p>
+        <div class="fix-diff-row">
+            <div class="fix-label">查找文本：</div>
+            <div class="fix-code" id="fixFrom"></div>
+        </div>
+        <div class="fix-diff-row">
+            <div class="fix-label">替换为：</div>
+            <div class="fix-code" id="fixTo"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn-sm" onclick="closeFixModal()" style="background:var(--card-bg);color:var(--text);border:1px solid var(--border)">取消</button>
+            <button class="btn-sm" id="btnConfirmFix" style="background:var(--success);color:#fff;border-color:var(--success)">确认修复</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>
