@@ -1,5 +1,5 @@
 """
-YAML 格式验证器与自动修复
+YAML 格式验证器与自动修复（全中文字段名）
 验证 LLM 输出的 YAML 数据是否完整、合法，对常见问题自动修复
 
 设计原则：
@@ -15,8 +15,8 @@ from backend.schema import Script, Meta, Character, Scene, Act
 
 # ─── 合法值定义 ─────────────────────────────
 
-VALID_VERSIONS = {"movie", "tv_series", "stage_play"}
-VALID_ACT_TYPES = {"action", "dialogue", "direction"}
+VALID_VERSIONS = {"电影版", "电视剧版", "舞台剧版"}
+VALID_ACT_TYPES = {"动作", "对白", "导演指示"}
 VALID_EMOTIONS = {
     "平静", "愤怒", "悲伤", "喜悦", "紧张",
     "恐惧", "嘲讽", "温柔", "惊讶", "无奈", "坚定", "犹豫", "",
@@ -30,7 +30,7 @@ VALID_GENDERS = {"男", "女", "不详", ""}
 @dataclass
 class ValidationIssue:
     """单个验证问题"""
-    field: str       # 字段路径，如 "meta.title"
+    field: str       # 字段路径，如 "元信息.标题"
     severity: str    # "error" | "warning" | "fixed"
     message: str
 
@@ -66,148 +66,148 @@ def validate_and_fix_script(script: Script) -> tuple[Script, ValidationReport]:
     """
     report = ValidationReport(is_valid=True)
 
-    # ── 1. 验证 Meta ──
-    meta = script.meta
+    # ── 1. 验证 元信息 ──
+    meta = script.元信息
 
-    if not meta.title or meta.title == "未命名剧本":
-        meta.title = meta.source_title + "·剧本" if meta.source_title else "未命名剧本"
-        report.fixes_applied.append(f"meta.title → '{meta.title}'")
+    if not meta.标题 or meta.标题 == "未命名剧本":
+        meta.标题 = meta.原著作 + "·剧本" if meta.原著作 else "未命名剧本"
+        report.fixes_applied.append(f"元信息.标题 → '{meta.标题}'")
 
-    if meta.version not in VALID_VERSIONS:
-        old = meta.version
-        meta.version = "movie"
-        report.fixes_applied.append(f"meta.version: '{old}' → 'movie'")
+    if meta.版本 not in VALID_VERSIONS:
+        old = meta.版本
+        meta.版本 = "电影版"
+        report.fixes_applied.append(f"元信息.版本: '{old}' → '电影版'")
         report.issues.append(ValidationIssue(
-            "meta.version", "fixed", f"版本值无效 '{old}'，默认改为 movie"
+            "元信息.版本", "fixed", f"版本值无效 '{old}'，默认改为 电影版"
         ))
 
-    if not meta.source_title and meta.title:
-        meta.source_title = meta.title.replace("·剧本", "").replace(".电影版", "")
+    if not meta.原著作 and meta.标题:
+        meta.原著作 = meta.标题.replace("·剧本", "").replace(".电影版", "").replace(".电视剧版", "").replace(".舞台剧版", "")
 
-    # ── 2. 验证 Characters ──
+    # ── 2. 验证 角色列表 ──
     valid_characters = []
-    for i, char in enumerate(script.characters):
-        if not char.name:
+    for i, char in enumerate(script.角色列表):
+        if not char.姓名:
             report.issues.append(ValidationIssue(
-                f"characters[{i}]", "warning", f"角色 #{i+1} 缺少名称，已跳过"
+                f"角色列表[{i}]", "warning", f"角色 #{i+1} 缺少名称，已跳过"
             ))
             continue
 
-        # 修复 ID
-        if not char.id:
-            char.id = i + 1
-            report.fixes_applied.append(f"character[{i}].id → {char.id}")
+        # 修复 编号
+        if not char.编号:
+            char.编号 = i + 1
+            report.fixes_applied.append(f"角色列表[{i}].编号 → {char.编号}")
 
         # 修复性别
-        if char.gender not in VALID_GENDERS:
+        if char.性别 not in VALID_GENDERS:
             report.issues.append(ValidationIssue(
-                f"characters[{i}].gender", "fixed",
-                f"性别值无效 '{char.gender}'，已清空"
+                f"角色列表[{i}].性别", "fixed",
+                f"性别值无效 '{char.性别}'，已清空"
             ))
-            char.gender = ""
+            char.性别 = ""
 
         # 修复角色类型
-        if char.role_type not in VALID_ROLE_TYPES:
+        if char.角色类型 not in VALID_ROLE_TYPES:
             report.issues.append(ValidationIssue(
-                f"characters[{i}].role_type", "fixed",
-                f"角色类型无效 '{char.role_type}'，已清空"
+                f"角色列表[{i}].角色类型", "fixed",
+                f"角色类型无效 '{char.角色类型}'，已清空"
             ))
-            char.role_type = ""
+            char.角色类型 = ""
 
-        # 确保 aliases 是列表
-        if not isinstance(char.aliases, list):
-            char.aliases = []
+        # 确保 别名 是列表
+        if not isinstance(char.别名, list):
+            char.别名 = []
 
-        # first_appearance
-        if not char.first_appearance:
-            char.first_appearance = 1
+        # 首次出场
+        if not char.首次出场:
+            char.首次出场 = 1
 
         valid_characters.append(char)
 
-    script.characters = valid_characters
-    script.meta.character_count = len(valid_characters)
+    script.角色列表 = valid_characters
+    script.元信息.角色数量 = len(valid_characters)
 
-    # ── 3. 验证 Scenes ──
-    if not script.scenes:
+    # ── 3. 验证 场景列表 ──
+    if not script.场景列表:
         report.is_valid = False
         report.issues.append(ValidationIssue(
-            "scenes", "error", "剧本中没有场景数据"
+            "场景列表", "error", "剧本中没有场景数据"
         ))
         return script, report
 
     valid_scenes = []
-    for i, scene in enumerate(script.scenes):
-        # 修复场景 ID
-        if not scene.id:
-            scene.id = i + 1
-            report.fixes_applied.append(f"scene[{i}].id → {scene.id}")
+    for i, scene in enumerate(script.场景列表):
+        # 修复场景 编号
+        if not scene.编号:
+            scene.编号 = i + 1
+            report.fixes_applied.append(f"场景列表[{i}].编号 → {scene.编号}")
 
         # 修复场景名
-        if not scene.name:
-            scene.name = f"场景{scene.id}"
+        if not scene.名称:
+            scene.名称 = f"场景{scene.编号}"
             report.issues.append(ValidationIssue(
-                f"scenes[{i}].name", "warning", "场景名缺失，使用默认名"
+                f"场景列表[{i}].名称", "warning", "场景名缺失，使用默认名"
             ))
 
         # 确保选项字段存在
-        for field in ["location", "time", "weather"]:
+        for field in ["地点", "时间", "天气"]:
             if not getattr(scene, field, None):
                 setattr(scene, field, "")
 
-        # 确保 characters 是列表
-        if not isinstance(scene.characters, list):
-            scene.characters = []
+        # 确保 出场角色 是列表
+        if not isinstance(scene.出场角色, list):
+            scene.出场角色 = []
 
-        # ── 3a. 验证 Acts ──
+        # ── 3a. 验证 内容 ──
         valid_acts = []
-        for j, act in enumerate(scene.acts):
-            # 修复 act 类型
-            if act.type not in VALID_ACT_TYPES:
-                old_type = act.type
-                act.type = "action"
+        for j, act in enumerate(scene.内容):
+            # 修复内容 类型
+            if act.类型 not in VALID_ACT_TYPES:
+                old_type = act.类型
+                act.类型 = "动作"
                 report.fixes_applied.append(
-                    f"scene[{i}].act[{j}].type: '{old_type}' → 'action'"
+                    f"场景列表[{i}].内容[{j}].类型: '{old_type}' → '动作'"
                 )
                 report.issues.append(ValidationIssue(
-                    f"scenes[{i}].acts[{j}].type", "fixed",
-                    f"act 类型无效 '{old_type}'，改为 action"
+                    f"场景列表[{i}].内容[{j}].类型", "fixed",
+                    f"内容类型无效 '{old_type}'，改为 动作"
                 ))
 
-            # 内容为空则跳过
-            if not act.content:
+            # 文本为空则跳过
+            if not act.文本:
                 report.issues.append(ValidationIssue(
-                    f"scenes[{i}].acts[{j}]", "warning", "act 内容为空，已跳过"
+                    f"场景列表[{i}].内容[{j}]", "warning", "内容文本为空，已跳过"
                 ))
                 continue
 
-            # dialogue 和 action 必须有关联角色
-            if act.type in ("dialogue", "action") and not act.character:
+            # 对白 和 动作 必须有关联角色
+            if act.类型 in ("对白", "动作") and not act.角色:
                 report.issues.append(ValidationIssue(
-                    f"scenes[{i}].acts[{j}].character", "warning",
-                    f"act 类型为 '{act.type}' 但缺失角色名"
+                    f"场景列表[{i}].内容[{j}].角色", "warning",
+                    f"内容类型为 '{act.类型}' 但缺失角色名"
                 ))
 
-            # emotion 可选，确保存在
-            if not act.emotion:
-                act.emotion = ""
+            # 情绪 可选，确保存在
+            if not act.情绪:
+                act.情绪 = ""
 
-            # note 可选
-            if not act.note:
-                act.note = ""
+            # 备注 可选
+            if not act.备注:
+                act.备注 = ""
 
             valid_acts.append(act)
 
-        scene.acts = valid_acts
+        scene.内容 = valid_acts
         valid_scenes.append(scene)
 
-    script.scenes = valid_scenes
-    script.meta.total_scenes = len(valid_scenes)
+    script.场景列表 = valid_scenes
+    script.元信息.总场景数 = len(valid_scenes)
 
     # 最终检查
     if not valid_scenes:
         report.is_valid = False
         report.issues.append(ValidationIssue(
-            "scenes", "error", "没有有效场景数据（所有场景的 act 均为空）"
+            "场景列表", "error", "没有有效场景数据（所有场景的内容均为空）"
         ))
 
     return script, report
