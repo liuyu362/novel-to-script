@@ -23,6 +23,7 @@ from backend.version_prompts import (
 from backend.character_extractor import extract_characters
 from backend.scene_extractor import extract_scenes
 from backend.dialogue_separator import extract_dialogue
+from backend.fusion_script import generate_fusion_script
 
 app = FastAPI(
     title="Novel to Script API",
@@ -270,6 +271,25 @@ class AnalyzeDialogueRequest(BaseModel):
         default="",
         max_length=200,
         description="小说标题（可选）",
+    )
+
+
+class FusionConvertRequest(BaseModel):
+    """融合转换请求体（串联 PR11+PR12+PR13 分析后生成剧本）"""
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文内容",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="小说标题（可选）",
+    )
+    version: str = Field(
+        default="movie",
+        description="剧本版本：movie（电影版）、tv_series（电视剧版）、stage_play（舞台剧版）",
     )
 
 
@@ -555,6 +575,32 @@ def analyze_dialogue(req: AnalyzeDialogueRequest):
         "text_length": len(req.text),
         **result,
     }, message=f"对话分离完成，共 {result['dialogue_count']} 条对话 / {result['narration_count']} 段叙述")
+
+
+@app.post("/api/convert/fusion")
+def fusion_convert(req: FusionConvertRequest):
+    """融合分析生成剧本
+
+    串联角色提取 + 场景提取 + 对话分离三阶段分析，
+    将分析结果注入 Prompt 生成上下文更丰富的剧本。
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    if req.version not in VALID_VERSIONS:
+        req.version = "movie"
+
+    result = generate_fusion_script(req.text, req.title, req.version)
+
+    msg_parts = [result["version"]]
+    ch = result["analysis"]["characters"]
+    sc = result["analysis"]["scenes"]
+    if ch.get("total"):
+        msg_parts.append(f"{ch['total']}个角色")
+    if sc.get("total"):
+        msg_parts.append(f"{sc['total']}个场景")
+
+    return success_response(result, message=f"融合生成完成（{' + '.join(msg_parts)}）")
 
 
 if __name__ == "__main__":
