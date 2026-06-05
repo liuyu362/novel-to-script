@@ -14,11 +14,12 @@ from backend.llm_client import call_llm
 from backend.prompts import SYSTEM_PROMPT, build_user_prompt, build_yaml_prompt
 from backend.errors import ErrorCode, ERROR_MESSAGES, AppException
 from backend.yaml_parser import parse_yaml_to_script, script_to_yaml
+from backend.yaml_validator import validate_and_fix_script, report_to_dict
 
 app = FastAPI(
     title="Novel to Script API",
     description="将小说文本转换为结构化剧本的 AI 工具",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 
@@ -149,6 +150,19 @@ class ConvertRequest(BaseModel):
     )
 
 
+class ValidateRequest(BaseModel):
+    """YAML 验证请求体"""
+    yaml_text: str = Field(
+        ...,
+        min_length=1,
+        description="要验证的 YAML 文本（剧本格式）",
+    )
+    source_title: str = Field(
+        default="测试作品",
+        description="原作标题",
+    )
+
+
 @app.post("/api/convert")
 def convert_novel(req: ConvertRequest):
     """接收小说文本，调用 LLM 生成结构化剧本"""
@@ -163,18 +177,23 @@ def convert_novel(req: ConvertRequest):
 
     raw_result = call_llm(SYSTEM_PROMPT, user_prompt)
 
-    # YAML 格式：解析为结构化数据
+    # YAML 格式：解析为结构化数据 + 验证修复
     if req.output_format == "yaml":
         try:
             script = parse_yaml_to_script(raw_result, source_title=req.title or "")
-            script_yaml = script_to_yaml(script)
-            stats = script.stats()
+
+            # ── PR8: 验证 + 自动修复 ──
+            fixed_script, validation_report = validate_and_fix_script(script)
+
+            script_yaml = script_to_yaml(fixed_script)
+            stats = fixed_script.stats()
             return success_response({
                 "text_length": len(req.text),
                 "title": req.title or "未命名",
                 "format": "yaml",
                 "script_yaml": script_yaml,
                 "script_stats": stats,
+                "validation": report_to_dict(validation_report),
                 "model": DEEPSEEK_MODEL,
             }, message="剧本生成完成（结构化 YAML）")
         except AppException:
@@ -195,6 +214,31 @@ def convert_novel(req: ConvertRequest):
         "script": raw_result,
         "model": DEEPSEEK_MODEL,
     }, message="剧本生成完成")
+
+
+@app.post("/api/validate")
+def validate_yaml(req: ValidateRequest):
+    """独立的 YAML 验证接口（不调用 LLM，仅验证格式）
+
+    用于调试：直接粘贴 YAML 文本，查看验证报告。
+    """
+    try:
+        script = parse_yaml_to_script(req.yaml_text, source_title=req.source_title)
+    except AppException as e:
+        return success_response({
+            "parse_error": e.message,
+            "validation": None,
+        }, message="YAML 解析失败，无法验证")
+
+    fixed_script, validation_report = validate_and_fix_script(script)
+    fixed_yaml = script_to_yaml(fixed_script)
+    stats = fixed_script.stats()
+
+    return success_response({
+        "validation": report_to_dict(validation_report),
+        "script_stats": stats,
+        "fixed_yaml": fixed_yaml if validation_report.fixes_applied else None,
+    }, message="验证完成")
 
 
 if __name__ == "__main__":
