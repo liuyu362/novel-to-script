@@ -520,6 +520,94 @@
             font-size: 13px;
         }
 
+        /* ── 逻辑检测：修复操作 ── */
+        .issue-card.resolved { opacity: 0.55; }
+        .issue-card.resolved .issue-header { text-decoration: line-through; text-decoration-color: var(--success); }
+        .issue-actions {
+            display: flex; gap: 6px; flex-wrap: wrap;
+            margin-top: 10px; padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+        .btn-issue {
+            padding: 4px 10px; border: 1px solid var(--border);
+            border-radius: 4px; font-size: 11px; cursor: pointer;
+            background: var(--card-bg); color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+        .btn-issue:hover { border-color: var(--primary); color: var(--text); }
+        .btn-issue.btn-jump { border-color: #89b4fa; color: #89b4fa; }
+        .btn-issue.btn-jump:hover { background: #89b4fa; color: #1e1e2e; }
+        .btn-issue.btn-mark-fixed { border-color: var(--success); color: var(--success); }
+        .btn-issue.btn-mark-fixed:hover { background: var(--success); color: #fff; }
+        .fix-preview {
+            display: none;
+            margin-top: 8px; padding: 10px 12px;
+            background: #11111b; border: 1px solid #45475a;
+            border-radius: 6px; font-size: 12px;
+        }
+        .fix-preview.show { display: block; }
+        .fix-preview .fix-label {
+            color: #a6e3a1; font-weight: 600; margin-bottom: 6px;
+        }
+        .fix-preview .fix-code {
+            font-family: "Cascadia Code", Consolas, monospace;
+            font-size: 11px; line-height: 1.5;
+            padding: 8px; background: #1e1e2e;
+            border-radius: 4px; margin: 4px 0;
+            white-space: pre-wrap; word-break: break-all;
+        }
+        .fix-preview .fix-code.find { border-left: 3px solid #f38ba8; }
+        .fix-preview .fix-code.replace { border-left: 3px solid #a6e3a1; }
+        .fix-preview .btn-apply-fix {
+            margin-top: 8px; padding: 6px 16px;
+            background: var(--success); color: #fff;
+            border: none; border-radius: 4px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        .fix-preview .btn-apply-fix:hover { filter: brightness(1.15); }
+
+        /* 确认弹窗 */
+        .fix-modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); z-index: 100;
+            align-items: center; justify-content: center;
+        }
+        .fix-modal-overlay.show { display: flex; }
+        .fix-modal {
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 24px;
+            max-width: 500px; width: 90%;
+        }
+        .fix-modal h3 { margin: 0 0 12px 0; font-size: 16px; }
+        .fix-modal .modal-actions {
+            display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;
+        }
+        .fix-modal .modal-actions button {
+            padding: 8px 20px; border-radius: 6px; font-size: 13px; cursor: pointer;
+        }
+        .fix-modal .btn-confirm {
+            background: var(--success); color: #fff; border: none;
+        }
+        .fix-modal .btn-cancel {
+            background: transparent; color: var(--text-secondary); border: 1px solid var(--border);
+        }
+
+        /* 进度条 */
+        .resolve-progress {
+            margin-top: 12px; display: flex; align-items: center; gap: 8px;
+        }
+        .resolve-progress .prog-bar {
+            flex: 1; height: 6px; background: #313244;
+            border-radius: 3px; overflow: hidden;
+        }
+        .resolve-progress .prog-fill {
+            height: 100%; background: var(--success); border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .resolve-progress .prog-text {
+            font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+        }
+
         /* ── Adapt Page ── */
         .version-selector {
             display: flex;
@@ -544,24 +632,30 @@
         .version-opt .v-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
         .version-opt .v-desc { font-size: 12px; color: var(--text-secondary); }
 
-        .script-output {
+        .script-editor {
+            display: block;
+            width: 100%;
+            min-height: 400px;
+            max-height: 600px;
+            margin-top: 12px;
+            padding: 16px;
             background: #1e1e2e;
             color: #cdd6f4;
-            border: 1px solid #313244;
+            border: 2px solid #313244;
             border-radius: var(--radius-sm);
-            padding: 16px;
             font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
             font-size: 13px;
             line-height: 1.6;
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-height: 500px;
-            overflow-y: auto;
-            margin-top: 12px;
+            resize: vertical;
+            outline: none;
+            tab-size: 2;
         }
-        .script-output::-webkit-scrollbar { width: 6px; }
-        .script-output::-webkit-scrollbar-track { background: transparent; }
-        .script-output::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+        .script-editor:focus {
+            border-color: var(--primary);
+        }
+        .script-editor::-webkit-scrollbar { width: 6px; }
+        .script-editor::-webkit-scrollbar-track { background: transparent; }
+        .script-editor::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
 
         .adapt-actions {
             display: flex;
@@ -589,6 +683,20 @@
             color: var(--warning);
             border-color: var(--warning);
         }
+
+        .btn-save {
+            background: var(--success);
+            color: #fff;
+            border-color: var(--success);
+        }
+        .btn-save:hover { opacity: 0.85; }
+
+        .btn-undo {
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+        .btn-undo:hover { color: var(--text); border-color: var(--text-secondary); }
 
         /* YAML syntax highlight helpers */
         .yaml-key { color: #89b4fa; }
@@ -997,12 +1105,17 @@
 
             <!-- 剧本输出 -->
             <div class="card hidden" id="scriptOutputCard" style="margin-top:16px">
-                <div class="adapt-section-title">生成剧本</div>
-                <div class="script-output" id="scriptOutput"></div>
+                <div class="adapt-section-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>生成剧本</span>
+                    <span id="editStatus" style="font-size:12px;color:var(--warning);display:none">● 未保存</span>
+                </div>
+                <textarea class="script-editor" id="scriptEditor" spellcheck="false" placeholder="剧本将在此生成..."></textarea>
                 <div class="adapt-actions">
-                    <button class="btn-sm btn-copy" id="btnCopy" onclick="copyScript()">复制剧本</button>
-                    <button class="btn-sm btn-download" onclick="downloadScript()">下载 YAML</button>
-                    <button class="btn-sm btn-retry" onclick="startAdapt()">重新生成</button>
+                    <button class="btn-sm btn-save" id="btnSave" onclick="saveScriptEdit()">保存修改</button>
+                    <button class="btn-sm btn-undo" id="btnUndo" onclick="undoScriptEdit()">撤销</button>
+                    <button class="btn-sm btn-copy" id="btnCopy" onclick="copyScript()">复制</button>
+                    <button class="btn-sm btn-download" onclick="downloadScript()">下载</button>
+                    <button class="btn-sm btn-retry" onclick="confirmRetry()">重新生成</button>
                 </div>
             </div>
         </div>
@@ -1049,6 +1162,12 @@
                     <button class="filter-tab" data-filter="plot_hole" onclick="filterIssues('plot_hole')">情节漏洞</button>
                 </div>
 
+                <!-- 修复进度 -->
+                <div class="resolve-progress hidden" id="resolveProgress">
+                    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                    <span class="prog-text" id="progText">已修复 0/0</span>
+                </div>
+
                 <!-- 问题列表 -->
                 <div id="issueList"></div>
 
@@ -1056,6 +1175,22 @@
                 <div id="detectNoIssues" class="hidden" style="text-align:center;padding:30px">
                     <p style="color:var(--success);font-size:16px;font-weight:600">未发现逻辑问题</p>
                     <p style="color:var(--text-secondary);font-size:13px;margin-top:4px">剧本逻辑一致性良好</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修复确认弹窗 -->
+        <div class="fix-modal-overlay" id="fixModalOverlay" onclick="if(event.target===this)closeFixModal()">
+            <div class="fix-modal">
+                <h3>确认修复</h3>
+                <p id="fixModalDesc" style="font-size:13px;color:var(--text-secondary);margin:0 0 12px 0"></p>
+                <div style="font-size:12px;color:#f38ba8;margin-bottom:6px">查找文本：</div>
+                <div class="fix-code find" id="fixModalFind"></div>
+                <div style="font-size:12px;color:#a6e3a1;margin:8px 0 6px 0">替换为：</div>
+                <div class="fix-code replace" id="fixModalReplace"></div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeFixModal()">取消</button>
+                    <button class="btn-confirm" id="btnConfirmFix" onclick="applyFix()">确认修复</button>
                 </div>
             </div>
         </div>
@@ -1590,6 +1725,8 @@ navigateTo = function(page) {
 // ── 剧本改编 ──
 let adaptVersion = 'movie';
 let adaptScriptText = '';
+let adaptScriptOriginal = '';
+let adaptScriptDirty = false;
 
 function selectVersion(ver) {
     adaptVersion = ver;
@@ -1613,14 +1750,36 @@ function loadAdaptData() {
     document.getElementById('adaptContent').classList.remove('hidden');
 
     // 显示摘要
-    const d = JSON.parse(raw);
-    const s = d.汇总;
-    document.getElementById('adaptSummaryText').textContent =
-        title + ' — ' +
-        (s.角色总数 || 0) + '个角色, ' +
-        (s.场景总数 || 0) + '个场景, ' +
-        (s.对话总数 || 0) + '条对话 | 共 ' +
-        rawText.length + ' 字';
+    try {
+        const d = JSON.parse(raw);
+        const s = d.汇总 || {};
+        document.getElementById('adaptSummaryText').textContent =
+            title + ' — ' +
+            (s.角色总数 || 0) + '个角色, ' +
+            (s.场景总数 || 0) + '个场景, ' +
+            (s.对话总数 || 0) + '条对话 | 共 ' +
+            rawText.length + ' 字';
+    } catch(e) {}
+
+    // 恢复剧本到 textarea（刷新不丢失）
+    const scriptRaw = localStorage.getItem('novelScript');
+    if (scriptRaw) {
+        try {
+            const sd = JSON.parse(scriptRaw);
+            const yaml = sd.剧本?.yaml文本 || '';
+            if (yaml) {
+                const textarea = document.getElementById('scriptEditor');
+                if (textarea) {
+                    textarea.value = yaml;
+                    adaptScriptText = yaml;
+                    adaptScriptOriginal = yaml;
+                    adaptScriptDirty = false;
+                    updateEditStatus();
+                    document.getElementById('scriptOutputCard').classList.remove('hidden');
+                }
+            }
+        } catch(e) {}
+    }
 }
 
 async function startAdapt() {
@@ -1664,18 +1823,28 @@ async function startAdapt() {
 function renderScript(data) {
     const yaml = data.剧本.yaml文本 || '';
     adaptScriptText = yaml;
+    adaptScriptOriginal = yaml;
+    adaptScriptDirty = false;
 
-    // 简单 YAML 语法高亮
-    const highlighted = yaml
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/^(#.*)$/gm, '<span class="yaml-comment">$1</span>')
-        .replace(/^(\s*)([\w\u4e00-\u9fff\-]+)(\s*:)/gm,
-            '$1<span class="yaml-key">$2</span>$3');
-
-    document.getElementById('scriptOutput').innerHTML = highlighted;
+    const textarea = document.getElementById('scriptEditor');
+    textarea.value = yaml;
+    updateEditStatus();
     document.getElementById('scriptOutputCard').classList.remove('hidden');
+
+    // 只绑定一次 textarea 事件
+    if (!textarea.dataset.bound) {
+        textarea.dataset.bound = '1';
+        textarea.addEventListener('input', () => {
+            adaptScriptDirty = true;
+            updateEditStatus();
+        });
+        textarea.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveScriptEdit();
+            }
+        });
+    }
 
     // 更新摘要中的版本信息
     const versionNames = { movie: '电影版', tv_series: '电视剧版', stage_play: '舞台剧版' };
@@ -1689,14 +1858,57 @@ function renderScript(data) {
         existing.split(' | ' + (versionNames[adaptVersion] || '电影版'))[0] + ' | ' + (versionNames[adaptVersion] || '电影版') + summaryExtra;
 }
 
+function updateEditStatus() {
+    const status = document.getElementById('editStatus');
+    if (adaptScriptDirty) {
+        status.style.display = 'inline';
+    } else {
+        status.style.display = 'none';
+    }
+}
+
+function saveScriptEdit() {
+    const textarea = document.getElementById('scriptEditor');
+    const newText = textarea.value;
+    adaptScriptText = newText;
+    adaptScriptOriginal = newText;
+    adaptScriptDirty = false;
+    updateEditStatus();
+
+    // 同步更新 localStorage 中的剧本数据
+    const raw = localStorage.getItem('novelScript');
+    if (raw) {
+        try {
+            const data = JSON.parse(raw);
+            data.剧本.yaml文本 = newText;
+            localStorage.setItem('novelScript', JSON.stringify(data));
+        } catch(e) {}
+    }
+}
+
+function undoScriptEdit() {
+    if (!adaptScriptDirty) return;
+    document.getElementById('scriptEditor').value = adaptScriptOriginal;
+    adaptScriptDirty = false;
+    updateEditStatus();
+}
+
+function confirmRetry() {
+    if (adaptScriptDirty) {
+        if (!confirm('当前有未保存的修改，重新生成将会丢失这些修改。确定继续？')) return;
+    }
+    startAdapt();
+}
+
 function copyScript() {
-    if (!adaptScriptText) return;
-    navigator.clipboard.writeText(adaptScriptText).then(() => {
+    const text = document.getElementById('scriptEditor').value;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
         const btn = document.getElementById('btnCopy');
         btn.textContent = '已复制!';
         btn.classList.add('copied');
         setTimeout(() => {
-            btn.textContent = '复制剧本';
+            btn.textContent = '复制';
             btn.classList.remove('copied');
         }, 2000);
     }).catch(() => {
@@ -1705,9 +1917,10 @@ function copyScript() {
 }
 
 function downloadScript() {
-    if (!adaptScriptText) return;
+    const text = document.getElementById('scriptEditor').value;
+    if (!text) return;
     const title = localStorage.getItem('novelTitle') || '剧本';
-    const blob = new Blob([adaptScriptText], { type: 'text/yaml' });
+    const blob = new Blob([text], { type: 'text/yaml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1719,6 +1932,8 @@ function downloadScript() {
 // ── 逻辑检测 ──
 let detectIssues = [];
 let detectCurrentFilter = 'all';
+let issueStates = {};      // {idx: 'pending'|'fixed'}
+let pendingFixIdx = -1;    // 待确认修复的 issue 索引
 
 function loadDetectData() {
     const scriptRaw = localStorage.getItem('novelScript');
@@ -1732,7 +1947,24 @@ function loadDetectData() {
 
     document.getElementById('detectEmpty').classList.add('hidden');
     document.getElementById('detectContent').classList.remove('hidden');
-    document.getElementById('detectResultPanel').classList.add('hidden');
+
+    // 从 localStorage 恢复检测结果
+    const logicRaw = localStorage.getItem('novelLogic');
+    if (logicRaw && detectIssues.length === 0) {
+        try {
+            const d = JSON.parse(logicRaw);
+            detectIssues = d.问题列表 || [];
+            detectCurrentFilter = 'all';
+            // 恢复修复状态
+            issueStates = {};
+            detectIssues.forEach((_, i) => { issueStates[i] = 'pending'; });
+            if (detectIssues.length > 0) {
+                document.getElementById('detectResultPanel').classList.remove('hidden');
+                renderIssueList(detectIssues);
+                updateProgress();
+            }
+        } catch(e) {}
+    }
 }
 
 async function startDetect() {
@@ -1778,6 +2010,9 @@ async function startDetect() {
         }
 
         renderDetectResult(data.data);
+
+        // 保存到 localStorage，防止刷新丢失
+        localStorage.setItem('novelLogic', JSON.stringify(data.data));
         markCompleted(4);
     } catch (err) {
         alert('请求失败: ' + err.message);
@@ -1790,6 +2025,10 @@ async function startDetect() {
 function renderDetectResult(data) {
     detectIssues = data.问题列表 || [];
     detectCurrentFilter = 'all';
+
+    // 初始化修复状态
+    issueStates = {};
+    detectIssues.forEach((_, i) => { issueStates[i] = 'pending'; });
 
     const summary = data.汇总 || { 总数: 0, 严重: 0, 警告: 0, 提示: 0 };
 
@@ -1823,10 +2062,13 @@ function renderDetectResult(data) {
         document.getElementById('issueList').innerHTML = '';
         document.getElementById('detectNoIssues').classList.remove('hidden');
         document.getElementById('filterTabs').classList.add('hidden');
+        document.getElementById('resolveProgress').classList.add('hidden');
     } else {
         document.getElementById('detectNoIssues').classList.add('hidden');
         document.getElementById('filterTabs').classList.remove('hidden');
+        document.getElementById('resolveProgress').classList.remove('hidden');
         renderIssueList(detectIssues);
+        updateProgress();
     }
 }
 
@@ -1856,8 +2098,10 @@ function renderIssueList(issues) {
         const typeClass = TYPE_CSS[iss.类型] || '';
         const issueClass = (iss.严重程度 === 'critical' ? 'critical-issue' :
                            iss.严重程度 === 'warning' ? 'warning-issue' : 'info-issue');
+        const isFixed = issueStates[i] === 'fixed';
+        const hasFix = iss.修复操作 && iss.修复操作.查找文本;
 
-        return '<div class="issue-card ' + issueClass + '">' +
+        let html = '<div class="issue-card ' + issueClass + (isFixed ? ' resolved' : '') + '">' +
             '<div class="issue-header">' +
                 '<span class="type-label ' + typeClass + '">' +
                     esc(TYPE_NAMES[iss.类型] || iss.类型) +
@@ -1866,14 +2110,200 @@ function renderIssueList(issues) {
                     esc(SEVERITY_NAMES[iss.严重程度] || iss.严重程度) +
                 '</span>' +
                 (iss.关联场景 ? '<span style="font-size:11px;color:var(--text-secondary)">' + esc(iss.关联场景) + '</span>' : '') +
+                (isFixed ? '<span style="font-size:11px;color:var(--success);margin-left:auto">已修复</span>' : '') +
             '</div>' +
             '<div class="issue-desc">' + esc(iss.描述) + '</div>' +
             (iss.涉及角色 && iss.涉及角色.length ?
                 '<div class="issue-meta">涉及: ' + iss.涉及角色.map(esc).join(', ') + '</div>' : '') +
             (iss.建议 ?
-                '<div class="issue-suggestion">' + esc(iss.建议) + '</div>' : '') +
-        '</div>';
+                '<div class="issue-suggestion">' + esc(iss.建议) + '</div>' : '');
+
+        // 操作按钮
+        html += '<div class="issue-actions">';
+        html += '<button class="btn-issue btn-jump" onclick="jumpToScene(' + i + ')">跳转修改</button>';
+        html += '<button class="btn-issue btn-mark-fixed" onclick="toggleIssueStatus(' + i + ')">' +
+            (isFixed ? '取消修复' : '标记已修复') + '</button>';
+        if (hasFix) {
+            html += '<button class="btn-issue" onclick="toggleFixPreview(' + i + ')" style="border-color:#a6e3a1;color:#a6e3a1">' +
+                '<span id="fixToggleLabel' + i + '">查看修复方案</span></button>';
+        }
+        html += '</div>';
+
+        // 修复预览面板
+        if (hasFix) {
+            const findText = iss.修复操作.查找文本;
+            const replaceText = iss.修复操作.替换为;
+            html += '<div class="fix-preview" id="fixPreview' + i + '">' +
+                '<div class="fix-label">修复方案</div>' +
+                '<div>查找:</div><div class="fix-code find">' + esc(findText) + '</div>' +
+                '<div>替换为:</div><div class="fix-code replace">' + esc(replaceText) + '</div>' +
+                '<button class="btn-apply-fix" onclick="openFixModal(' + i + ')">一键修复</button>' +
+            '</div>';
+        }
+
+        html += '</div>';
+        return html;
     }).join('');
+}
+
+function toggleFixPreview(idx) {
+    const panel = document.getElementById('fixPreview' + idx);
+    const label = document.getElementById('fixToggleLabel' + idx);
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('show');
+    if (label) label.textContent = isOpen ? '收起方案' : '查看修复方案';
+}
+
+function toggleIssueStatus(idx) {
+    issueStates[idx] = issueStates[idx] === 'fixed' ? 'pending' : 'fixed';
+    // 重新渲染当前视图
+    const filtered = detectCurrentFilter === 'all' ? detectIssues :
+        detectIssues.filter(i => i.类型 === detectCurrentFilter);
+    renderIssueList(filtered);
+    updateProgress();
+}
+
+function updateProgress() {
+    const total = detectIssues.length;
+    if (total === 0) {
+        document.getElementById('resolveProgress').classList.add('hidden');
+        return;
+    }
+    const fixed = Object.values(issueStates).filter(s => s === 'fixed').length;
+    const pct = Math.round(fixed / total * 100);
+    document.getElementById('resolveProgress').classList.remove('hidden');
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('progText').textContent = '已修复 ' + fixed + '/' + total;
+}
+
+function jumpToScene(idx) {
+    // 确保 detectIssues 可用（从 localStorage 回退）
+    if (detectIssues.length === 0) {
+        const logicRaw = localStorage.getItem('novelLogic');
+        if (logicRaw) {
+            try {
+                const d = JSON.parse(logicRaw);
+                detectIssues = d.问题列表 || [];
+                issueStates = {};
+                detectIssues.forEach((_, i) => { issueStates[i] = 'pending'; });
+            } catch(e) {}
+        }
+    }
+    const iss = detectIssues[idx];
+    if (!iss) { alert('检测数据已丢失，请重新检测'); return; }
+
+    const scene = iss.关联场景 || '';
+    const findText = (iss.修复操作 && iss.修复操作.查找文本) ? iss.修复操作.查找文本 : scene;
+
+    // 导航到改编页
+    navigateTo('adapt');
+
+    // 等 DOM 渲染完成后定位
+    setTimeout(() => {
+        const textarea = document.getElementById('scriptEditor');
+
+        // 确保 textarea 有内容
+        if (!textarea || !textarea.value) {
+            const raw = localStorage.getItem('novelScript');
+            if (raw) {
+                try {
+                    const d = JSON.parse(raw);
+                    const yaml = d.剧本?.yaml文本 || '';
+                    if (textarea && yaml) {
+                        textarea.value = yaml;
+                        adaptScriptText = yaml;
+                        adaptScriptOriginal = yaml;
+                        adaptScriptDirty = false;
+                        document.getElementById('scriptOutputCard').classList.remove('hidden');
+                        updateEditStatus();
+                    }
+                } catch(e) {}
+            }
+        }
+        if (!textarea || !textarea.value) {
+            alert('请先生成剧本（第3步），然后再使用跳转功能');
+            return;
+        }
+
+        // 搜索并选中
+        const text = textarea.value;
+        let pos = text.indexOf(findText);
+        if (pos === -1 && scene) pos = text.indexOf(scene);
+        if (pos === -1) {
+            alert('未在剧本中找到 "' + findText + '"，请手动搜索修改');
+            return;
+        }
+
+        textarea.focus();
+        textarea.setSelectionRange(pos, pos + findText.length);
+
+        // 滚动到目标位置
+        const before = text.substring(0, pos);
+        const lineIdx = before.split('\n').length - 1;
+        const lineHeight = 22;
+        textarea.scrollTop = Math.max(0, lineIdx * lineHeight - 100);
+    }, 300);
+}
+
+function openFixModal(idx) {
+    const iss = detectIssues[idx];
+    if (!iss || !iss.修复操作) return;
+    pendingFixIdx = idx;
+    document.getElementById('fixModalDesc').textContent = iss.描述;
+    document.getElementById('fixModalFind').textContent = iss.修复操作.查找文本;
+    document.getElementById('fixModalReplace').textContent = iss.修复操作.替换为;
+    document.getElementById('fixModalOverlay').classList.add('show');
+}
+
+function closeFixModal() {
+    document.getElementById('fixModalOverlay').classList.remove('show');
+    pendingFixIdx = -1;
+}
+
+function applyFix() {
+    if (pendingFixIdx < 0) return;
+    const iss = detectIssues[pendingFixIdx];
+    if (!iss || !iss.修复操作) return;
+
+    const findText = iss.修复操作.查找文本;
+    const replaceText = iss.修复操作.替换为;
+
+    // 修改内存中的剧本
+    const raw = localStorage.getItem('novelScript');
+    if (!raw) { alert('剧本数据不存在'); return; }
+    try {
+        const d = JSON.parse(raw);
+        const yaml = d.剧本?.yaml文本 || '';
+        if (!yaml.includes(findText)) {
+            alert('未在剧本中找到 "' + findText + '"，可能已被修改。请手动编辑。');
+            closeFixModal();
+            return;
+        }
+        const newYaml = yaml.replace(findText, replaceText);
+        d.剧本.yaml文本 = newYaml;
+        localStorage.setItem('novelScript', JSON.stringify(d));
+
+        // 更新 textarea（如果可见）
+        const textarea = document.getElementById('scriptEditor');
+        if (textarea) {
+            textarea.value = newYaml;
+            adaptScriptText = newYaml;
+            adaptScriptOriginal = newYaml;
+            adaptScriptDirty = false;
+            updateEditStatus();
+        }
+
+        // 标记为已修复
+        issueStates[pendingFixIdx] = 'fixed';
+        const filtered = detectCurrentFilter === 'all' ? detectIssues :
+            detectIssues.filter(i => i.类型 === detectCurrentFilter);
+        renderIssueList(filtered);
+        updateProgress();
+
+        closeFixModal();
+    } catch(e) {
+        alert('修复失败: ' + e.message);
+    }
 }
 
 function filterIssues(filter) {
@@ -2204,6 +2634,8 @@ const __origNav = navigateTo;
 navigateTo = function(page) {
     __origNav(page);
     if (page === 'export') loadExportData();
+    if (page === 'adapt') loadAdaptData();
+    if (page === 'detect') loadDetectData();
 };
 </script>
 
