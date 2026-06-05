@@ -15,11 +15,12 @@ from backend.prompts import SYSTEM_PROMPT, build_user_prompt, build_yaml_prompt
 from backend.errors import ErrorCode, ERROR_MESSAGES, AppException
 from backend.yaml_parser import parse_yaml_to_script, script_to_yaml
 from backend.yaml_validator import validate_and_fix_script, report_to_dict
+from backend.chapter_splitter import split_chapters, split_by_length, detect_chapter_pattern
 
 app = FastAPI(
     title="Novel to Script API",
     description="将小说文本转换为结构化剧本的 AI 工具",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 
@@ -114,7 +115,7 @@ def root():
     """根路径"""
     return success_response({
         "service": "novel-to-script",
-        "version": "0.3.0",
+        "version": "0.5.0",
         "docs": "/docs",
     })
 
@@ -125,7 +126,7 @@ def health_check():
     return success_response({
         "status": "ok",
         "service": "novel-to-script",
-        "version": "0.3.0",
+        "version": "0.5.0",
         "llm_ready": is_llm_ready(),
         "llm_model": DEEPSEEK_MODEL,
     })
@@ -160,6 +161,45 @@ class ValidateRequest(BaseModel):
     source_title: str = Field(
         default="测试作品",
         description="原作标题",
+    )
+
+
+class BatchConvertRequest(BaseModel):
+    """批量转换请求体"""
+    text: str = Field(
+        ...,
+        min_length=50,
+        max_length=500000,
+        description="小说原文内容",
+    )
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="小说标题（可选）",
+    )
+    output_format: str = Field(
+        default="yaml",
+        description="输出格式：yaml（结构化）或 text（纯文本）",
+    )
+    split_mode: str = Field(
+        default="auto",
+        description="分割方式：auto（自动识别）、force（按字数强制分割）、manual（手动指定模式）",
+    )
+    split_pattern: str = Field(
+        default="",
+        description="手动指定章节模式（如 中文章节），split_mode=manual 时生效",
+    )
+    max_chars_per_chapter: int = Field(
+        default=5000,
+        ge=1000,
+        le=50000,
+        description="按字数分割时每章最大字数",
+    )
+    max_chapters: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="最多转换章节数（防止超额调用）",
     )
 
 
@@ -239,6 +279,142 @@ def validate_yaml(req: ValidateRequest):
         "script_stats": stats,
         "fixed_yaml": fixed_yaml if validation_report.fixes_applied else None,
     }, message="验证完成")
+
+
+@app.post("/api/split")
+def preview_split(req: ConvertRequest):
+    """章节分割预览接口（不调用 LLM，仅展示分割结果）
+
+    用于在正式转换前预览章节分割情况。
+    """
+    if req.text.strip():
+        detected = detect_chapter_pattern(req.text)
+        result = split_chapters(req.text)
+
+        chapters_preview = [
+            {
+                "index": ch.index,
+                "title": ch.title,
+                "char_count": len(ch.content),
+                "preview": ch.content[:80] + ("..." if len(ch.content) > 80 else ""),
+                "pattern": ch.pattern_name,
+            }
+            for ch in result.chapters
+        ]
+
+        return success_response({
+            "total_chapters": result.total_chapters,
+            "detected_pattern": detected,
+            "pattern_used": result.pattern_used,
+            "prelude_length": len(result.prelude) if result.prelude else 0,
+            "message": result.message,
+            "chapters": chapters_preview,
+        }, message="分割预览完成")
+    else:
+        return success_response({
+            "total_chapters": 0,
+            "detected_pattern": "",
+            "chapters": [],
+        }, message="文本为空")
+
+
+@app.post("/api/convert/batch")
+def batch_convert(req: BatchConvertRequest):
+    """批量转换：自动分割章节 → 逐章调用 LLM → 汇总返回
+
+    流程：
+    1. 按 split_mode 分割文本为若干章节
+    2. 逐章调用 LLM 生成剧本
+    3. 返回每章结果 + 总体统计
+    """
+    if not is_llm_ready():
+        raise AppException(ErrorCode.LLM_NOT_READY)
+
+    # ── 1. 分割章节 ──
+    if req.split_mode == "force":
+        chapters = split_by_length(req.text, req.max_chars_per_chapter)
+        split_msg = f"按字数强制分割（每章≤{req.max_chars_per_chapter}字）"
+    elif req.split_mode == "manual" and req.split_pattern:
+        result = split_chapters(req.text, pattern_override=req.split_pattern)
+        chapters = result.chapters
+        split_msg = result.message
+    else:
+        result = split_chapters(req.text)
+        chapters = result.chapters
+        split_msg = result.message
+
+    total = min(len(chapters), req.max_chapters)
+    chapters = chapters[:total]
+
+    # ── 2. 逐章转换 ──
+    chapter_results = []
+    success_count = 0
+
+    for ch in chapters:
+        status = "processing"
+
+        if req.output_format == "yaml":
+            user_prompt = build_yaml_prompt(ch.content, f"{req.title or '作品'} - {ch.title}")
+        else:
+            user_prompt = build_user_prompt(ch.content, f"{req.title or '作品'} - {ch.title}")
+
+        try:
+            raw_result = call_llm(SYSTEM_PROMPT, user_prompt)
+
+            if req.output_format == "yaml":
+                try:
+                    script = parse_yaml_to_script(raw_result, source_title=ch.title)
+                    fixed_script, val_report = validate_and_fix_script(script)
+                    chapter_results.append({
+                        "chapter_index": ch.index,
+                        "chapter_title": ch.title,
+                        "format": "yaml",
+                        "script_yaml": script_to_yaml(fixed_script),
+                        "script_stats": fixed_script.stats(),
+                        "validation": report_to_dict(val_report),
+                        "status": "completed",
+                    })
+                    success_count += 1
+                except AppException:
+                    chapter_results.append({
+                        "chapter_index": ch.index,
+                        "chapter_title": ch.title,
+                        "format": "text_fallback",
+                        "script": raw_result,
+                        "status": "completed",
+                        "warning": "YAML 解析失败，降级为纯文本",
+                    })
+                    success_count += 1
+            else:
+                chapter_results.append({
+                    "chapter_index": ch.index,
+                    "chapter_title": ch.title,
+                    "format": "text",
+                    "script": raw_result,
+                    "status": "completed",
+                })
+                success_count += 1
+
+        except Exception as e:
+            chapter_results.append({
+                "chapter_index": ch.index,
+                "chapter_title": ch.title,
+                "format": "error",
+                "status": "failed",
+                "error": str(e),
+            })
+
+    return success_response({
+        "total_chapters": total,
+        "success_count": success_count,
+        "failed_count": total - success_count,
+        "split_info": {
+            "message": split_msg,
+            "total_text_length": len(req.text),
+        },
+        "chapters": chapter_results,
+        "model": DEEPSEEK_MODEL,
+    }, message=f"批量转换完成（{success_count}/{total} 成功）")
 
 
 if __name__ == "__main__":
