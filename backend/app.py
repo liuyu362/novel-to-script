@@ -3,6 +3,7 @@ AI 小说转剧本工具 - 后端服务
 基于 FastAPI 框架
 """
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -77,6 +78,27 @@ async def global_exception_handler(request: Request, exc: Exception):
     import logging
     logging.exception("Unhandled exception")
     return error_response(ErrorCode.INTERNAL_ERROR, ERROR_MESSAGES[ErrorCode.INTERNAL_ERROR])
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """捕获 Pydantic 参数校验失败（422），转为统一错误格式"""
+    # 提取第一个错误信息
+    try:
+        first_err = exc.errors()[0]
+        loc = " → ".join(str(x) for x in first_err.get("loc", []))
+        msg = first_err.get("msg", "参数错误")
+        detail = f"{loc}: {msg}"
+    except Exception:
+        detail = "请求参数不符合要求"
+    return JSONResponse(
+        status_code=200,
+        content={
+            "code": int(ErrorCode.INVALID_PARAMS),
+            "message": detail or ERROR_MESSAGES[ErrorCode.INVALID_PARAMS],
+            "data": None,
+        },
+    )
 
 # 允许前端跨域访问
 app.add_middleware(
