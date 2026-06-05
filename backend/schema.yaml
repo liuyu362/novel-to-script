@@ -1,0 +1,57 @@
+# ============================================================
+# 小说转剧本 YAML Schema 定义
+# 版本: 1.0
+# 说明: 本 Schema 定义了一套将小说文本转换为结构化剧本的标准格式
+# ============================================================
+
+# 顶层结构
+meta:                    # 元信息
+  title: ""              # 剧本标题
+  source_title: ""       # 原著标题
+  version: "movie"       # 剧本版本: movie | tv_series | stage_play
+  total_scenes: 0        # 总场景数
+  character_count: 0     # 角色数量
+  generated_at: ""       # 生成时间 (ISO 8601)
+
+characters:              # 角色列表
+  - id: 1                # 角色ID
+    name: ""             # 角色名
+    aliases: []          # 别名/称号
+    gender: ""           # 性别: 男 | 女 | 未知
+    age: ""              # 年龄描述
+    role_type: ""        # 角色类型: 主角 | 配角 | 反派 | 路人
+    description: ""      # 角色描述
+    first_appearance: 0  # 首次出场场景ID
+
+scenes:                  # 场景列表
+  - id: 1                # 场景ID
+    name: ""             # 场景名称
+    location: ""         # 地点
+    time: ""             # 时间描述
+    weather: ""          # 天气/环境
+    characters: []       # 出场角色名列表
+    acts:                # 场景内容（动作和对话）
+      - type: action     # 类型: action | dialogue | direction
+        content: ""      # 内容
+        character: ""    # 执行角色（action时为动作执行者，dialogue时为说话人）
+        emotion: ""      # 情绪/语气
+        note: ""         # 补充说明
+      - type: dialogue
+        content: ""
+        character: ""
+        emotion: ""
+        note: ""
+
+# ============================================================
+# Schema 设计逻辑
+# ============================================================
+# 1. 三层结构: meta → characters → scenes
+#    从宏观（剧本信息）到中观（角色体系）再到微观（逐场景展开）
+#
+# 2. scenes.acts 采用结构化动作/对话混合
+#    type=action  : 描述性动作/环境变化
+#    type=dialogue: 角色对白
+#    type=direction: 导演指示/舞台指导
+#
+# 3. 多版本支持: meta.version 区分电影/电视剧/舞台剧
+#    不同版本在同一 Schema 下产出，只是内容侧重不同
