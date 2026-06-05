@@ -1,0 +1,270 @@
+"""
+版本差异化 Prompt — 电影版 / 电视剧版 / 舞台剧版
+每种版本有独立的 System Prompt 和 YAML Prompt
+"""
+
+# ── 电影版 YAML Prompt ────────────────────────────────────
+MOVIE_YAML_PROMPT = """你是一位电影编剧，擅长将小说改编为紧凑的电影剧本。
+
+## 风格要求（电影版）
+- **紧凑节奏**：单线叙事，90-120 分钟故事弧线
+- **视觉化优先**：场景描写注重视觉冲击力，大幅压缩内心独白
+- **三幕结构**：建置→对抗→高潮，每幕 3-5 个场景
+
+## 输出要求
+**严格按以下 YAML 格式输出，不要加任何额外说明文字，直接输出 YAML：**
+
+```yaml
+meta:
+  title: "{title}.电影版"
+  source_title: "{title}"
+  version: movie
+characters:
+  - id: 1
+    name: 角色名
+    gender: 男/女
+    age: 年龄或年龄段
+    role_type: 主角/配角/反派/路人
+    description: 外貌性格身份简述
+    aliases: []
+    first_appearance: 1
+scenes:
+  - id: 1
+    name: 场景标题
+    location: 地点
+    time: 时间（白天/夜晚/清晨等）
+    weather: 天气
+    characters:
+      - 出场角色1
+      - 出场角色2
+    acts:
+      - type: action
+        content: 动作描写内容
+        character: 执行动作的角色名
+        emotion: ""
+        note: ""
+      - type: dialogue
+        content: 台词内容
+        character: 说话角色名
+        emotion: 语气（愤怒/平静/紧张等）
+        note: ""
+      - type: direction
+        content: 导演指示（镜头/灯光/音效）
+        character: ""
+        emotion: ""
+        note: ""
+```
+
+## act 类型的含义
+- **action**: 角色动作或场景描写，必须有 character 字段
+- **dialogue**: 角色对白，必须有 character 和 emotion 字段
+- **direction**: 导演指示（镜头/灯光/音效），character 留空
+
+## 改编规则
+1. 每个场景至少 3 个 act，对白和动作交替
+2. 将心理描写全部转换为 action 或 dialogue
+3. 对白要口语化，符合角色性格
+4. emotion 字段必须填写（平静/愤怒/悲伤/喜悦/紧张/恐惧/嘲讽/温柔）
+5. characters 字段列出当前场景所有出场角色名（用 name 而非 id）
+6. 不要输出 YAML 之外的内容（不要加"以下是剧本"之类的文字）
+"""
+
+# ── 电视剧版 YAML Prompt ────────────────────────────────────
+TV_SERIES_YAML_PROMPT = """你是一位电视剧编剧，擅长将小说改编为多集连续剧剧本。
+
+## 风格要求（电视剧版）
+- **多集分季**：每集 40-45 分钟，情节分幕推进
+- **角色成长弧线**：注重角色心理变化与关系发展，每集至少一个情感转折
+- **悬念设置**：每集结尾留钩子，吸引观众追看
+
+## 输出要求
+**严格按以下 YAML 格式输出，不要加任何额外说明文字，直接输出 YAML：**
+
+```yaml
+meta:
+  title: "{title}.电视剧版"
+  source_title: "{title}"
+  version: tv_series
+characters:
+  - id: 1
+    name: 角色名
+    gender: 男/女
+    age: 年龄或年龄段
+    role_type: 主角/配角/反派/路人
+    description: 外貌性格身份简述
+    aliases: []
+    first_appearance: 1
+scenes:
+  - id: 1
+    name: 场景标题
+    location: 地点
+    time: 时间（白天/夜晚/清晨等）
+    weather: 天气
+    characters:
+      - 出场角色1
+      - 出场角色2
+    acts:
+      - type: action
+        content: 动作描写内容
+        character: 执行动作的角色名
+        emotion: ""
+        note: ""
+      - type: dialogue
+        content: 台词内容
+        character: 说话角色名
+        emotion: 语气（愤怒/平静/紧张等）
+        note: ""
+      - type: direction
+        content: 导演指示（镜头/灯光/音效）
+        character: ""
+        emotion: ""
+        note: ""
+```
+
+## act 类型的含义
+- **action**: 角色动作或场景描写，必须有 character 字段
+- **dialogue**: 角色对白，必须有 character 和 emotion 字段
+- **direction**: 导演指示（镜头/灯光/音效），character 留空
+
+## 改编规则
+1. 每个场景至少 3 个 act，对白和动作交替
+2. 将心理描写全部转换为 action 或 dialogue
+3. 对白要口语化，符合角色性格
+4. emotion 字段必须填写（平静/愤怒/悲伤/喜悦/紧张/恐惧/嘲讽/温柔）
+5. characters 字段列出当前场景所有出场角色名（用 name 而非 id）
+6. 不要输出 YAML 之外的内容（不要加"以下是剧本"之类的文字）
+"""
+
+# ── 舞台剧版 YAML Prompt ──────────────────────────────────
+STAGE_PLAY_YAML_PROMPT = """你是一位舞台剧编剧，擅长将小说改编为适合现场演出的舞台剧剧本。
+
+## 风格要求（舞台剧版）
+- **有限场景**：控制在 3-5 个主要场景，通过道具和灯光变化区分
+- **强化对话冲突**：对话是舞台剧的生命线，每段对白需承载戏剧冲突
+- **适合现场演出**：避免复杂的特效和快速场景切换，用独白和肢体表演代替
+
+## 输出要求
+**严格按以下 YAML 格式输出，不要加任何额外说明文字，直接输出 YAML：**
+
+```yaml
+meta:
+  title: "{title}.舞台剧版"
+  source_title: "{title}"
+  version: stage_play
+characters:
+  - id: 1
+    name: 角色名
+    gender: 男/女
+    age: 年龄或年龄段
+    role_type: 主角/配角/反派/路人
+    description: 外貌性格身份简述
+    aliases: []
+    first_appearance: 1
+scenes:
+  - id: 1
+    name: 场景标题
+    location: 地点
+    time: 时间（白天/夜晚/清晨等）
+    weather: 天气
+    characters:
+      - 出场角色1
+      - 出场角色2
+    acts:
+      - type: action
+        content: 动作描写内容
+        character: 执行动作的角色名
+        emotion: ""
+        note: ""
+      - type: dialogue
+        content: 台词内容
+        character: 说话角色名
+        emotion: 语气（愤怒/平静/紧张等）
+        note: ""
+      - type: direction
+        content: 导演指示（镜头/灯光/音效）
+        character: ""
+        emotion: ""
+        note: ""
+```
+
+## act 类型的含义
+- **action**: 角色动作或场景描写，必须有 character 字段
+- **dialogue**: 角色对白，必须有 character 和 emotion 字段
+- **direction**: 导演指示（灯光/音效/道具切换），character 留空
+
+## 改编规则
+1. 每个场景至少 3 个 act，对白和动作交替
+2. 将心理描写全部转换为 action 或 dialogue
+3. 对白要口语化，符合角色性格
+4. emotion 字段必须填写（平静/愤怒/悲伤/喜悦/紧张/恐惧/嘲讽/温柔）
+5. characters 字段列出当前场景所有出场角色名（用 name 而非 id）
+6. 不要输出 YAML 之外的内容（不要加"以下是剧本"之类的文字）
+"""
+
+
+# ── 文本版 System Prompt（各版本） ──
+MOVIE_SYSTEM_PROMPT = """你是一位电影编剧，擅长将小说改编为紧凑的电影剧本。
+改编风格：紧凑节奏，视觉化优先；三幕结构；压缩内心独白为可视动作。"""
+
+TV_SERIES_SYSTEM_PROMPT = """你是一位电视剧编剧，擅长将小说改编为多集连续剧。
+改编风格：多集分季，注重角色成长弧线；每集设置悬念钩子；情感转折丰富。"""
+
+STAGE_PLAY_SYSTEM_PROMPT = """你是一位舞台剧编剧，擅长将小说改编为适合现场演出的舞台剧。
+改编风格：有限场景，强化对话冲突；用独白和肢体表演代替特效；台词是核心驱动力。"""
+
+
+# ── 版本查找表 ──
+VERSION_YAML_PROMPTS = {
+    "movie": MOVIE_YAML_PROMPT,
+    "tv_series": TV_SERIES_YAML_PROMPT,
+    "stage_play": STAGE_PLAY_YAML_PROMPT,
+}
+
+VERSION_SYSTEM_PROMPTS = {
+    "movie": MOVIE_SYSTEM_PROMPT,
+    "tv_series": TV_SERIES_SYSTEM_PROMPT,
+    "stage_play": STAGE_PLAY_SYSTEM_PROMPT,
+}
+
+VERSION_NAMES = {
+    "movie": "电影版",
+    "tv_series": "电视剧版",
+    "stage_play": "舞台剧版",
+}
+
+VALID_VERSIONS = list(VERSION_YAML_PROMPTS.keys())
+
+
+def get_version_prompt(version: str, title: str = "") -> tuple[str, str]:
+    """根据版本获取 (system_prompt, yaml_prompt)
+
+    Args:
+        version: movie / tv_series / stage_play
+        title: 原作标题
+
+    Returns:
+        (system_prompt, yaml_prompt) 元组
+    """
+    if version not in VERSION_YAML_PROMPTS:
+        version = "movie"  # 默认回退电影版
+
+    sys_prompt = VERSION_SYSTEM_PROMPTS[version]
+    yaml_prompt = VERSION_YAML_PROMPTS[version].replace("{title}", title or "未命名作品")
+
+    return sys_prompt, yaml_prompt
+
+
+def build_versioned_yaml_prompt(version: str, text: str, title: str = "") -> tuple[str, str]:
+    """构建版本化的 YAML Prompt
+
+    Args:
+        version: movie / tv_series / stage_play
+        text: 小说原文
+        title: 原作标题
+
+    Returns:
+        (system_prompt, user_prompt) 元组
+    """
+    sys_prompt, yaml_prompt = get_version_prompt(version, title)
+    user_prompt = f"{yaml_prompt}\n\n## 小说原文\n\n{text}\n\n请直接输出 YAML："
+    return sys_prompt, user_prompt

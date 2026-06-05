@@ -16,11 +16,15 @@ from backend.errors import ErrorCode, ERROR_MESSAGES, AppException
 from backend.yaml_parser import parse_yaml_to_script, script_to_yaml
 from backend.yaml_validator import validate_and_fix_script, report_to_dict
 from backend.chapter_splitter import split_chapters, split_by_length, detect_chapter_pattern
+from backend.version_prompts import (
+    build_versioned_yaml_prompt, get_version_prompt,
+    VERSION_NAMES, VALID_VERSIONS,
+)
 
 app = FastAPI(
     title="Novel to Script API",
     description="将小说文本转换为结构化剧本的 AI 工具",
-    version="0.5.0",
+    version="0.6.0",
 )
 
 
@@ -115,7 +119,7 @@ def root():
     """根路径"""
     return success_response({
         "service": "novel-to-script",
-        "version": "0.5.0",
+        "version": "0.6.0",
         "docs": "/docs",
     })
 
@@ -126,10 +130,20 @@ def health_check():
     return success_response({
         "status": "ok",
         "service": "novel-to-script",
-        "version": "0.5.0",
+        "version": "0.6.0",
         "llm_ready": is_llm_ready(),
         "llm_model": DEEPSEEK_MODEL,
     })
+
+
+@app.get("/api/versions")
+def list_versions():
+    """列出所有支持的剧本版本及其说明"""
+    return success_response([
+        {"id": "movie", "name": "电影版", "description": "紧凑节奏，视觉化优先"},
+        {"id": "tv_series", "name": "电视剧版", "description": "多集分季，注重角色成长弧线"},
+        {"id": "stage_play", "name": "舞台剧版", "description": "有限场景，强化对话冲突，适合现场演出"},
+    ], message="可用版本列表")
 
 
 class ConvertRequest(BaseModel):
@@ -148,6 +162,10 @@ class ConvertRequest(BaseModel):
     output_format: str = Field(
         default="yaml",
         description="输出格式：yaml（结构化）或 text（纯文本）",
+    )
+    version: str = Field(
+        default="movie",
+        description="剧本版本：movie（电影版）、tv_series（电视剧版）、stage_play（舞台剧版）",
     )
 
 
@@ -201,6 +219,10 @@ class BatchConvertRequest(BaseModel):
         le=50,
         description="最多转换章节数（防止超额调用）",
     )
+    version: str = Field(
+        default="movie",
+        description="剧本版本：movie（电影版）、tv_series（电视剧版）、stage_play（舞台剧版）",
+    )
 
 
 @app.post("/api/convert")
@@ -209,13 +231,17 @@ def convert_novel(req: ConvertRequest):
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
-    # 根据格式选择 Prompt
+    # ── PR10: 版本化 Prompt ──
+    if req.version not in VALID_VERSIONS:
+        req.version = "movie"
+
     if req.output_format == "yaml":
-        user_prompt = build_yaml_prompt(req.text, req.title)
+        sys_prompt, user_prompt = build_versioned_yaml_prompt(req.version, req.text, req.title)
     else:
+        sys_prompt, _ = get_version_prompt(req.version, req.title)
         user_prompt = build_user_prompt(req.text, req.title)
 
-    raw_result = call_llm(SYSTEM_PROMPT, user_prompt)
+    raw_result = call_llm(sys_prompt, user_prompt)
 
     # YAML 格式：解析为结构化数据 + 验证修复
     if req.output_format == "yaml":
@@ -230,6 +256,7 @@ def convert_novel(req: ConvertRequest):
             return success_response({
                 "text_length": len(req.text),
                 "title": req.title or "未命名",
+                "version": VERSION_NAMES.get(req.version, "电影版"),
                 "format": "yaml",
                 "script_yaml": script_yaml,
                 "script_stats": stats,
@@ -240,6 +267,7 @@ def convert_novel(req: ConvertRequest):
             return success_response({
                 "text_length": len(req.text),
                 "title": req.title or "未命名",
+                "version": VERSION_NAMES.get(req.version, "电影版"),
                 "format": "text_fallback",
                 "script": raw_result,
                 "warning": "YAML 解析失败，返回原始文本，请检查或重试",
@@ -250,6 +278,7 @@ def convert_novel(req: ConvertRequest):
     return success_response({
         "text_length": len(req.text),
         "title": req.title or "未命名",
+        "version": VERSION_NAMES.get(req.version, "电影版"),
         "format": "text",
         "script": raw_result,
         "model": DEEPSEEK_MODEL,
@@ -351,15 +380,21 @@ def batch_convert(req: BatchConvertRequest):
     success_count = 0
 
     for ch in chapters:
-        status = "processing"
+        if req.version not in VALID_VERSIONS:
+            req.version = "movie"
+
+        chapter_title = f"{req.title or '作品'} - {ch.title}"
 
         if req.output_format == "yaml":
-            user_prompt = build_yaml_prompt(ch.content, f"{req.title or '作品'} - {ch.title}")
+            sys_prompt, user_prompt = build_versioned_yaml_prompt(
+                req.version, ch.content, chapter_title
+            )
         else:
-            user_prompt = build_user_prompt(ch.content, f"{req.title or '作品'} - {ch.title}")
+            sys_prompt, _ = get_version_prompt(req.version, chapter_title)
+            user_prompt = build_user_prompt(ch.content, chapter_title)
 
         try:
-            raw_result = call_llm(SYSTEM_PROMPT, user_prompt)
+            raw_result = call_llm(sys_prompt, user_prompt)
 
             if req.output_format == "yaml":
                 try:
