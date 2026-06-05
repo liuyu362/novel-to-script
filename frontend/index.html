@@ -544,24 +544,30 @@
         .version-opt .v-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
         .version-opt .v-desc { font-size: 12px; color: var(--text-secondary); }
 
-        .script-output {
+        .script-editor {
+            display: block;
+            width: 100%;
+            min-height: 400px;
+            max-height: 600px;
+            margin-top: 12px;
+            padding: 16px;
             background: #1e1e2e;
             color: #cdd6f4;
-            border: 1px solid #313244;
+            border: 2px solid #313244;
             border-radius: var(--radius-sm);
-            padding: 16px;
             font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
             font-size: 13px;
             line-height: 1.6;
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-height: 500px;
-            overflow-y: auto;
-            margin-top: 12px;
+            resize: vertical;
+            outline: none;
+            tab-size: 2;
         }
-        .script-output::-webkit-scrollbar { width: 6px; }
-        .script-output::-webkit-scrollbar-track { background: transparent; }
-        .script-output::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+        .script-editor:focus {
+            border-color: var(--primary);
+        }
+        .script-editor::-webkit-scrollbar { width: 6px; }
+        .script-editor::-webkit-scrollbar-track { background: transparent; }
+        .script-editor::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
 
         .adapt-actions {
             display: flex;
@@ -589,6 +595,20 @@
             color: var(--warning);
             border-color: var(--warning);
         }
+
+        .btn-save {
+            background: var(--success);
+            color: #fff;
+            border-color: var(--success);
+        }
+        .btn-save:hover { opacity: 0.85; }
+
+        .btn-undo {
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+        .btn-undo:hover { color: var(--text); border-color: var(--text-secondary); }
 
         /* YAML syntax highlight helpers */
         .yaml-key { color: #89b4fa; }
@@ -997,12 +1017,17 @@
 
             <!-- 剧本输出 -->
             <div class="card hidden" id="scriptOutputCard" style="margin-top:16px">
-                <div class="adapt-section-title">生成剧本</div>
-                <div class="script-output" id="scriptOutput"></div>
+                <div class="adapt-section-title" style="display:flex;justify-content:space-between;align-items:center">
+                    <span>生成剧本</span>
+                    <span id="editStatus" style="font-size:12px;color:var(--warning);display:none">● 未保存</span>
+                </div>
+                <textarea class="script-editor" id="scriptEditor" spellcheck="false" placeholder="剧本将在此生成..."></textarea>
                 <div class="adapt-actions">
-                    <button class="btn-sm btn-copy" id="btnCopy" onclick="copyScript()">复制剧本</button>
-                    <button class="btn-sm btn-download" onclick="downloadScript()">下载 YAML</button>
-                    <button class="btn-sm btn-retry" onclick="startAdapt()">重新生成</button>
+                    <button class="btn-sm btn-save" id="btnSave" onclick="saveScriptEdit()">保存修改</button>
+                    <button class="btn-sm btn-undo" id="btnUndo" onclick="undoScriptEdit()">撤销</button>
+                    <button class="btn-sm btn-copy" id="btnCopy" onclick="copyScript()">复制</button>
+                    <button class="btn-sm btn-download" onclick="downloadScript()">下载</button>
+                    <button class="btn-sm btn-retry" onclick="confirmRetry()">重新生成</button>
                 </div>
             </div>
         </div>
@@ -1590,6 +1615,8 @@ navigateTo = function(page) {
 // ── 剧本改编 ──
 let adaptVersion = 'movie';
 let adaptScriptText = '';
+let adaptScriptOriginal = '';
+let adaptScriptDirty = false;
 
 function selectVersion(ver) {
     adaptVersion = ver;
@@ -1664,18 +1691,28 @@ async function startAdapt() {
 function renderScript(data) {
     const yaml = data.剧本.yaml文本 || '';
     adaptScriptText = yaml;
+    adaptScriptOriginal = yaml;
+    adaptScriptDirty = false;
 
-    // 简单 YAML 语法高亮
-    const highlighted = yaml
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/^(#.*)$/gm, '<span class="yaml-comment">$1</span>')
-        .replace(/^(\s*)([\w\u4e00-\u9fff\-]+)(\s*:)/gm,
-            '$1<span class="yaml-key">$2</span>$3');
-
-    document.getElementById('scriptOutput').innerHTML = highlighted;
+    const textarea = document.getElementById('scriptEditor');
+    textarea.value = yaml;
+    updateEditStatus();
     document.getElementById('scriptOutputCard').classList.remove('hidden');
+
+    // 只绑定一次 textarea 事件
+    if (!textarea.dataset.bound) {
+        textarea.dataset.bound = '1';
+        textarea.addEventListener('input', () => {
+            adaptScriptDirty = true;
+            updateEditStatus();
+        });
+        textarea.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveScriptEdit();
+            }
+        });
+    }
 
     // 更新摘要中的版本信息
     const versionNames = { movie: '电影版', tv_series: '电视剧版', stage_play: '舞台剧版' };
@@ -1689,14 +1726,57 @@ function renderScript(data) {
         existing.split(' | ' + (versionNames[adaptVersion] || '电影版'))[0] + ' | ' + (versionNames[adaptVersion] || '电影版') + summaryExtra;
 }
 
+function updateEditStatus() {
+    const status = document.getElementById('editStatus');
+    if (adaptScriptDirty) {
+        status.style.display = 'inline';
+    } else {
+        status.style.display = 'none';
+    }
+}
+
+function saveScriptEdit() {
+    const textarea = document.getElementById('scriptEditor');
+    const newText = textarea.value;
+    adaptScriptText = newText;
+    adaptScriptOriginal = newText;
+    adaptScriptDirty = false;
+    updateEditStatus();
+
+    // 同步更新 localStorage 中的剧本数据
+    const raw = localStorage.getItem('novelScript');
+    if (raw) {
+        try {
+            const data = JSON.parse(raw);
+            data.剧本.yaml文本 = newText;
+            localStorage.setItem('novelScript', JSON.stringify(data));
+        } catch(e) {}
+    }
+}
+
+function undoScriptEdit() {
+    if (!adaptScriptDirty) return;
+    document.getElementById('scriptEditor').value = adaptScriptOriginal;
+    adaptScriptDirty = false;
+    updateEditStatus();
+}
+
+function confirmRetry() {
+    if (adaptScriptDirty) {
+        if (!confirm('当前有未保存的修改，重新生成将会丢失这些修改。确定继续？')) return;
+    }
+    startAdapt();
+}
+
 function copyScript() {
-    if (!adaptScriptText) return;
-    navigator.clipboard.writeText(adaptScriptText).then(() => {
+    const text = document.getElementById('scriptEditor').value;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
         const btn = document.getElementById('btnCopy');
         btn.textContent = '已复制!';
         btn.classList.add('copied');
         setTimeout(() => {
-            btn.textContent = '复制剧本';
+            btn.textContent = '复制';
             btn.classList.remove('copied');
         }, 2000);
     }).catch(() => {
@@ -1705,9 +1785,10 @@ function copyScript() {
 }
 
 function downloadScript() {
-    if (!adaptScriptText) return;
+    const text = document.getElementById('scriptEditor').value;
+    if (!text) return;
     const title = localStorage.getItem('novelTitle') || '剧本';
-    const blob = new Blob([adaptScriptText], { type: 'text/yaml' });
+    const blob = new Blob([text], { type: 'text/yaml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
