@@ -1,11 +1,14 @@
 """
 DeepSeek API 客户端封装
+统一错误处理，抛出 AppException
 """
 from openai import OpenAI
+from openai import RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
 from backend.config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL, is_llm_ready
+from backend.errors import AppException, ErrorCode
 
 
-def get_client() -> OpenAI | None:
+def get_client() -> "OpenAI | None":
     """获取 DeepSeek API 客户端实例，未配置 Key 时返回 None"""
     if not is_llm_ready():
         return None
@@ -24,24 +27,33 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
         模型生成的文本
 
     Raises:
-        RuntimeError: API Key 未配置时
-        Exception: API 调用失败时
+        AppException: 各种可预期错误，携带错误码
     """
     client = get_client()
     if client is None:
-        raise RuntimeError(
-            "DeepSeek API Key 未配置。请创建 backend/.env 文件，"
-            "参考 .env.example 填写 DEEPSEEK_API_KEY"
+        raise AppException(
+            ErrorCode.LLM_NOT_READY,
+            "DeepSeek API Key 未配置。请检查 backend/.env 文件"
         )
 
-    response = client.chat.completions.create(
-        model=DEEPSEEK_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.7,
-        max_tokens=4096,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.7,
+            max_tokens=4096,
+        )
+        return response.choices[0].message.content
 
-    return response.choices[0].message.content
+    except RateLimitError:
+        raise AppException(ErrorCode.LLM_RATE_LIMIT)
+    except APITimeoutError:
+        raise AppException(ErrorCode.LLM_TIMEOUT)
+    except (APIConnectionError, InternalServerError):
+        raise AppException(ErrorCode.LLM_CALL_FAILED, "AI 服务连接异常，请稍后重试")
+    except Exception as e:
+        # 兜底：其他未知错误
+        raise AppException(ErrorCode.LLM_CALL_FAILED, f"AI 调用失败：{str(e)[:100]}")
