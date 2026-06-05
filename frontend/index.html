@@ -983,6 +983,9 @@
             <textarea id="novelText" placeholder="将小说文本粘贴到这里，不少于50字..."></textarea>
 
             <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+                <label style="font-size:13px;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;gap:4px">
+                    <input type="checkbox" id="chkChapterWise" checked> 逐章分析（长文本推荐）
+                </label>
                 <button class="btn btn-primary" id="btnAnalyze" onclick="startAnalyze()">
                     开始解读
                 </button>
@@ -999,6 +1002,15 @@
             <div class="card">
                 <h3>解读结果</h3>
                 <div class="stats-row" id="statsRow"></div>
+            <!-- 分章信息 -->
+            <div class="result-section hidden" id="chapterSection" style="margin-top:18px;">
+                <h4>分章信息</h4>
+                <div id="chapterInfo" style="font-size:13px;color:var(--text-secondary);line-height:1.8;"></div>
+                <details style="margin-top:10px;">
+                    <summary style="cursor:pointer;font-size:13px;color:var(--primary);">查看章节列表</summary>
+                    <ul id="chapterList" style="margin:8px 0 0 0;padding-left:20px;font-size:13px;color:var(--text-secondary);"></ul>
+                </details>
+            </div>
             </div>
 
             <!-- 角色列表 -->
@@ -1351,16 +1363,19 @@ async function startAnalyze() {
         return;
     }
 
+    const chapterWise = document.getElementById('chkChapterWise')?.checked ?? true;
     const btn = document.getElementById('btnAnalyze');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> 解读中...';
+    btn.innerHTML = chapterWise
+        ? '<span class="spinner"></span> 正在逐章分析...'
+        : '<span class="spinner"></span> 解读中...';
     document.getElementById('resultPanel').classList.add('hidden');
 
     try {
         const resp = await fetch('/api/analyze/novel', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, title }),
+            body: JSON.stringify({ text, title, chapter_wise: chapterWise }),
         });
         const data = await resp.json();
 
@@ -1369,7 +1384,7 @@ async function startAnalyze() {
             return;
         }
 
-        renderResult(data.data);
+        renderResult(data.data, data.data.分章信息 || null);
         localStorage.setItem('novelAnalysis', JSON.stringify(data.data));
         localStorage.setItem('novelRawText', text);
         localStorage.setItem('novelTitle', title);
@@ -1378,11 +1393,11 @@ async function startAnalyze() {
         alert('请求失败: ' + err.message);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '开始解读';
+        btn.innerHTML = (document.getElementById('chkChapterWise')?.checked ? '开始解读（逐章）' : '开始解读');
     }
 }
 
-function renderResult(d) {
+function renderResult(d, chapterInfo) {
     const s = d.汇总;
 
     // 统计概览
@@ -1440,6 +1455,23 @@ function renderResult(d) {
         document.getElementById('dialogueSection').classList.remove('hidden');
     } else {
         document.getElementById('dialogueSection').classList.add('hidden');
+    }
+
+    // 分章信息
+    var chapterSection = document.getElementById('chapterSection');
+    var chapterInfoDiv = document.getElementById('chapterInfo');
+    var chapterList = document.getElementById('chapterList');
+    if (chapterInfo && chapterInfo.章节数 > 0) {
+        chapterSection.classList.remove('hidden');
+        chapterInfoDiv.innerHTML =
+            '<b>章节模式：</b>' + esc(chapterInfo.章节模式 || '无') + '<br>' +
+            '<b>章节数：</b>' + chapterInfo.章节数 + '<br>' +
+            '<b>总字数：</b>' + (d.text_length || '?') + ' 字';
+        chapterList.innerHTML = (chapterInfo.章节列表 || []).map(function(ch) {
+            return '<li>第' + ch.序号 + '章：' + esc(ch.标题) + '（' + ch.字数 + '字）</li>';
+        }).join('');
+    } else {
+        chapterSection.classList.add('hidden');
     }
 
     document.getElementById('resultPanel').classList.remove('hidden');
