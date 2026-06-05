@@ -719,6 +719,119 @@
             font-weight: 600;
             color: var(--primary);
         }
+
+        /* ── Export Page ── */
+        .export-overview {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 900px) {
+            .export-overview { grid-template-columns: repeat(2, 1fr); }
+        }
+        .export-stat {
+            text-align: center;
+            padding: 16px 8px;
+            border-radius: var(--radius-sm);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+        }
+        .export-stat .stat-icon { font-size: 22px; }
+        .export-stat .stat-num { font-size: 22px; font-weight: 700; color: var(--primary); }
+        .export-stat .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .export-stat .stat-ok { color: var(--success); font-size: 11px; margin-top: 4px; }
+
+        .export-format-cards {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 700px) {
+            .export-format-cards { flex-direction: column; }
+        }
+        .export-fmt-opt {
+            flex: 1;
+            padding: 18px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            background: var(--card-bg);
+        }
+        .export-fmt-opt:hover { border-color: var(--primary); }
+        .export-fmt-opt.selected { border-color: var(--primary); background: var(--primary-light); }
+        .export-fmt-opt .fmt-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .export-fmt-opt .fmt-desc { font-size: 12px; color: var(--text-secondary); }
+
+        .export-options {
+            margin-bottom: 20px;
+        }
+        .export-options .options-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .checkbox-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text);
+            cursor: pointer;
+        }
+        .checkbox-item input[type="checkbox"] {
+            accent-color: var(--primary);
+            width: 15px;
+            height: 15px;
+        }
+
+        .export-preview {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #313244;
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .export-preview::-webkit-scrollbar { width: 6px; }
+        .export-preview::-webkit-scrollbar-track { background: transparent; }
+        .export-preview::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+
+        .export-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .export-actions .btn-sm { font-size: 13px; padding: 7px 18px; }
+        .btn-export {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .btn-export:hover { background: var(--primary-hover); }
+        .btn-export.copied { background: var(--success); border-color: var(--success); }
+
+        .export-combined-hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -949,12 +1062,84 @@
     </section>
 
     <section class="page" id="page-export">
-        <div class="card">
-            <h3>导出下载</h3>
+        <div id="exportEmpty" class="card">
             <div class="placeholder">
                 <div class="line"></div>
-                <p>多格式导出最终剧本（YAML / JSON / TXT）</p>
-                <p style="margin-top:8px;font-size:12px">PR20 实现</p>
+                <p>请先完成前面四步（上传解读 → 角色场景 → 剧本改编 → 逻辑检测）</p>
+                <p style="margin-top:8px;font-size:12px">剧本数据将自动带入此页面</p>
+            </div>
+        </div>
+        <div id="exportContent" class="hidden">
+            <!-- 数据概览 -->
+            <div class="card">
+                <div class="adapt-section-title">数据概览</div>
+                <div class="export-overview" id="exportOverview"></div>
+            </div>
+
+            <!-- 格式选择 -->
+            <div class="card" style="margin-top:16px">
+                <div class="adapt-section-title">选择导出格式</div>
+                <div class="export-format-cards" id="exportFmtCards">
+                    <div class="export-fmt-opt selected" data-fmt="yaml" onclick="selectExportFmt('yaml')">
+                        <div class="fmt-name">YAML 格式</div>
+                        <div class="fmt-desc">结构化剧本，保留完整场景/角色/对话信息</div>
+                    </div>
+                    <div class="export-fmt-opt" data-fmt="json" onclick="selectExportFmt('json')">
+                        <div class="fmt-name">JSON 格式</div>
+                        <div class="fmt-desc">结构化数据，方便程序处理与二次开发</div>
+                    </div>
+                    <div class="export-fmt-opt" data-fmt="txt" onclick="selectExportFmt('txt')">
+                        <div class="fmt-name">纯文本格式</div>
+                        <div class="fmt-desc">人类可读，方便直接编辑与分享</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 导出内容选项 -->
+            <div class="card" style="margin-top:16px">
+                <div class="adapt-section-title">选择导出内容</div>
+                <div class="export-options">
+                    <div class="options-title">勾选需要包含在导出文件中的内容：</div>
+                    <div class="checkbox-row" id="exportCheckBoxes">
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="cbScript" checked> 剧本正文
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="cbChars" checked> 角色列表
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="cbScenes" checked> 场景列表
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="cbDialogue"> 对话统计
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="cbLogic"> 逻辑检测报告
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" id="cbSummary" checked> 分析摘要
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 预览 -->
+            <div class="card" style="margin-top:16px">
+                <div class="adapt-section-title">导出预览</div>
+                <button class="btn-sm primary" onclick="refreshPreview()" style="margin-bottom:10px">刷新预览</button>
+                <div class="export-preview" id="exportPreview">请点击「刷新预览」查看内容</div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div style="text-align:center;margin-top:20px">
+                <div class="export-actions" style="justify-content:center">
+                    <button class="btn btn-primary" id="btnExport" onclick="doExport()">
+                        导出下载
+                    </button>
+                    <button class="btn-sm btn-export" id="btnCopyExport" onclick="copyExport()">复制内容</button>
+                    <button class="btn-sm btn-download" onclick="exportAll()">打包下载全部格式</button>
+                </div>
+                <div class="export-combined-hint">「打包下载全部格式」将同时下载 YAML / JSON / TXT 三个文件</div>
             </div>
         </div>
     </section>
@@ -1707,6 +1892,319 @@ function filterIssues(filter) {
         renderIssueList(filtered);
     }
 }
+
+// ── 导出下载 ──
+let exportFmt = 'yaml';
+let exportPreviewText = '';
+
+function selectExportFmt(fmt) {
+    exportFmt = fmt;
+    document.querySelectorAll('.export-fmt-opt').forEach(el => {
+        el.classList.toggle('selected', el.dataset.fmt === fmt);
+    });
+}
+
+function loadExportData() {
+    const scriptRaw = localStorage.getItem('novelScript');
+    const analysisRaw = localStorage.getItem('novelAnalysis');
+    const logicRaw = localStorage.getItem('novelLogic');
+    const title = localStorage.getItem('novelTitle') || '未命名作品';
+
+    if (!scriptRaw && !analysisRaw) {
+        document.getElementById('exportEmpty').classList.remove('hidden');
+        document.getElementById('exportContent').classList.add('hidden');
+        return;
+    }
+
+    document.getElementById('exportEmpty').classList.add('hidden');
+    document.getElementById('exportContent').classList.remove('hidden');
+
+    // 数据概览
+    let chars = 0, scenes = 0, issues = 0, scriptLen = 0;
+    try { const d = JSON.parse(analysisRaw); chars = d.characters?.total || 0; scenes = d.scenes?.total || 0; } catch(e){}
+    try { const d = JSON.parse(scriptRaw); scriptLen = (d.script?.yaml || '').length; } catch(e){}
+    try { const d = JSON.parse(logicRaw); issues = (d.issues || []).length; } catch(e){}
+
+    document.getElementById('exportOverview').innerHTML =
+        '<div class="export-stat">' +
+            '<div class="stat-icon">📄</div>' +
+            '<div class="stat-num">' + (scriptLen ? Math.round(scriptLen/1024*10)/10 + 'KB' : '无') + '</div>' +
+            '<div class="stat-label">剧本大小</div>' +
+        '</div>' +
+        '<div class="export-stat">' +
+            '<div class="stat-icon">👤</div>' +
+            '<div class="stat-num">' + chars + '</div>' +
+            '<div class="stat-label">角色数</div>' +
+        '</div>' +
+        '<div class="export-stat">' +
+            '<div class="stat-icon">🎬</div>' +
+            '<div class="stat-num">' + scenes + '</div>' +
+            '<div class="stat-label">场景数</div>' +
+        '</div>' +
+        '<div class="export-stat">' + (issues > 0
+            ? '<div class="stat-icon">⚠️</div><div class="stat-num" style="color:var(--warning)">' + issues + '</div><div class="stat-label">逻辑问题</div>'
+            : '<div class="stat-icon">✅</div><div class="stat-num" style="color:var(--success)">0</div><div class="stat-label">逻辑问题</div>') +
+        '</div>';
+}
+
+async function refreshPreview() {
+    const data = buildExportData();
+    if (!data) { alert('没有可导出的内容，请先完成前面步骤'); return; }
+
+    let text = '';
+    if (exportFmt === 'yaml') {
+        text = buildYamlExport(data);
+    } else if (exportFmt === 'json') {
+        text = JSON.stringify(data, null, 2);
+    } else {
+        text = buildTxtExport(data);
+    }
+
+    exportPreviewText = text;
+
+    // 语法高亮
+    let highlighted = text;
+    if (exportFmt === 'yaml') {
+        highlighted = text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/^(#.*)$/gm, '<span class="yaml-comment">$1</span>')
+            .replace(/^(\s*)([\w\u4e00-\u9fff\-]+)(\s*:)/gm, '$1<span class="yaml-key">$2</span>$3');
+    } else if (exportFmt === 'json') {
+        highlighted = text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"([\w]+)":/g, '"<span class="yaml-key">$1</span>":')
+            .replace(/: "([^"]*)"/g, ': "<span class="yaml-val">$1</span>"')
+            .replace(/: (\d+)/g, ': <span class="yaml-val">$1</span>');
+    } else {
+        highlighted = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    document.getElementById('exportPreview').innerHTML = highlighted;
+}
+
+function buildExportData() {
+    const scriptRaw = localStorage.getItem('novelScript');
+    const analysisRaw = localStorage.getItem('novelAnalysis');
+    const logicRaw = localStorage.getItem('novelLogic');
+    const title = localStorage.getItem('novelTitle') || '未命名作品';
+
+    const data = { title, export_time: new Date().toISOString() };
+
+    if (document.getElementById('cbScript')?.checked) {
+        try { const d = JSON.parse(scriptRaw); data.script = d.script; } catch(e){}
+    }
+    if (document.getElementById('cbChars')?.checked) {
+        try { const d = JSON.parse(analysisRaw); data.characters = d.characters; } catch(e){}
+    }
+    if (document.getElementById('cbScenes')?.checked) {
+        try { const d = JSON.parse(analysisRaw); data.scenes = d.scenes; } catch(e){}
+    }
+    if (document.getElementById('cbDialogue')?.checked) {
+        try { const d = JSON.parse(analysisRaw); data.dialogue = d.dialogue; } catch(e){}
+    }
+    if (document.getElementById('cbLogic')?.checked) {
+        try { const d = JSON.parse(logicRaw); data.logic_report = { issues: d.issues, summary: d.summary }; } catch(e){}
+    }
+    if (document.getElementById('cbSummary')?.checked) {
+        try { const d = JSON.parse(analysisRaw); data.summary = d.summary; } catch(e){}
+    }
+
+    return data;
+}
+
+function buildYamlExport(data) {
+    let lines = [
+        '# ====================================',
+        '# 剧本导出文件',
+        '# 作品: ' + (data.title || '未命名'),
+        '# 导出时间: ' + new Date().toLocaleString('zh-CN'),
+        '# ====================================',
+        '',
+    ];
+
+    if (data.summary) {
+        lines.push('## 分析摘要');
+        lines.push('summary:');
+        lines.push('  total_characters: ' + (data.summary.total_characters || 0));
+        lines.push('  total_scenes: ' + (data.summary.total_scenes || 0));
+        lines.push('  total_dialogues: ' + (data.summary.total_dialogues || 0));
+        lines.push('');
+    }
+
+    if (data.script?.yaml) {
+        lines.push('## 剧本正文');
+        lines.push('');
+        lines.push(data.script.yaml);
+        lines.push('');
+    }
+
+    if (data.characters?.characters) {
+        lines.push('## 角色列表');
+        data.characters.characters.forEach(c => {
+            lines.push('- name: ' + (c.name || '未知'));
+            lines.push('  role_type: ' + (c.role_type || '配角'));
+            lines.push('  gender: ' + (c.gender || '未知'));
+            lines.push('  age: ' + (c.age || '未知'));
+            if (c.description) lines.push('  description: "' + c.description + '"');
+            if (c.aliases?.length) lines.push('  aliases: [' + c.aliases.map(a => '"' + a + '"').join(', ') + ']');
+            lines.push('');
+        });
+    }
+
+    if (data.scenes?.scenes) {
+        lines.push('## 场景列表');
+        data.scenes.scenes.forEach(s => {
+            lines.push('- location: ' + (s.location || '未知'));
+            lines.push('  location_type: ' + (s.location_type || '未知'));
+            lines.push('  time_period: ' + (s.time_period || '未知'));
+            lines.push('  weather: ' + (s.weather || '未知'));
+            if (s.characters_present?.length) lines.push('  characters_present: [' + s.characters_present.map(c => '"' + c + '"').join(', ') + ']');
+            if (s.description) lines.push('  description: "' + s.description + '"');
+            lines.push('');
+        });
+    }
+
+    if (data.logic_report?.issues) {
+        lines.push('## 逻辑检测报告');
+        data.logic_report.issues.forEach((iss, i) => {
+            lines.push('- issue #' + (i+1));
+            lines.push('  type: ' + iss.type);
+            lines.push('  severity: ' + iss.severity);
+            lines.push('  description: "' + iss.description + '"');
+            if (iss.suggestion) lines.push('  suggestion: "' + iss.suggestion + '"');
+            lines.push('');
+        });
+    }
+
+    return lines.join('\n');
+}
+
+function buildTxtExport(data) {
+    let lines = [];
+    lines.push('=====================================');
+    lines.push('  剧本导出文件');
+    lines.push('  作品: ' + (data.title || '未命名'));
+    lines.push('  导出时间: ' + new Date().toLocaleString('zh-CN'));
+    lines.push('=====================================');
+    lines.push('');
+
+    if (data.summary) {
+        lines.push('【分析摘要】');
+        lines.push('  角色数: ' + (data.summary.total_characters || 0));
+        lines.push('  场景数: ' + (data.summary.total_scenes || 0));
+        lines.push('  对话数: ' + (data.summary.total_dialogues || 0));
+        lines.push('');
+    }
+
+    if (data.script?.yaml) {
+        lines.push('【剧本正文】');
+        lines.push('');
+        lines.push(data.script.yaml);
+        lines.push('');
+    }
+
+    if (data.characters?.characters) {
+        lines.push('【角色列表】');
+        data.characters.characters.forEach(c => {
+            lines.push('  - ' + (c.name || '未知') + ' (' + (c.role_type || '配角') + ', ' + (c.gender || '未知') + ')');
+            if (c.description) lines.push('    ' + c.description);
+        });
+        lines.push('');
+    }
+
+    if (data.scenes?.scenes) {
+        lines.push('【场景列表】');
+        data.scenes.scenes.forEach(s => {
+            lines.push('  - ' + (s.location || '未知') + ' [' + (s.time_period || '') + ']');
+            if (s.description) lines.push('    ' + s.description);
+        });
+        lines.push('');
+    }
+
+    if (data.logic_report?.issues) {
+        lines.push('【逻辑检测报告】');
+        data.logic_report.issues.forEach((iss, i) => {
+            lines.push('  ' + (i+1) + '. [' + iss.severity + '] ' + iss.description);
+            if (iss.suggestion) lines.push('    → 建议: ' + iss.suggestion);
+        });
+        lines.push('');
+    }
+
+    return lines.join('\n');
+}
+
+function doExport() {
+    const data = buildExportData();
+    if (!data) { alert('没有可导出的内容'); return; }
+
+    let text = '';
+    let ext = '.' + exportFmt;
+    let mime = 'text/plain';
+    if (exportFmt === 'yaml') {
+        text = buildYamlExport(data);
+        mime = 'text/yaml';
+    } else if (exportFmt === 'json') {
+        text = JSON.stringify(data, null, 2);
+        mime = 'application/json';
+    } else {
+        text = buildTxtExport(data);
+    }
+
+    const title = localStorage.getItem('novelTitle') || '剧本';
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = title + '_' + exportFmt + ext;
+    a.click();
+    URL.revokeObjectURL(url);
+    markCompleted(5);
+}
+
+function copyExport() {
+    if (!exportPreviewText) { alert('请先点击「刷新预览」生成内容'); return; }
+    navigator.clipboard.writeText(exportPreviewText).then(() => {
+        const btn = document.getElementById('btnCopyExport');
+        btn.textContent = '已复制!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = '复制内容'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+        alert('复制失败，请手动选择文本复制');
+    });
+}
+
+async function exportAll() {
+    const title = localStorage.getItem('novelTitle') || '剧本';
+    const fmts = ['yaml', 'json', 'txt'];
+    for (const fmt of fmts) {
+        exportFmt = fmt;
+        const data = buildExportData();
+        if (!data) continue;
+        let text = '';
+        let ext = '.' + fmt;
+        let mime = 'text/plain';
+        if (fmt === 'yaml') { text = buildYamlExport(data); mime = 'text/yaml'; }
+        else if (fmt === 'json') { text = JSON.stringify(data, null, 2); mime = 'application/json'; }
+        else { text = buildTxtExport(data); }
+
+        const blob = new Blob([text], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = title + '_' + fmt + ext;
+        a.click();
+        URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 300)); // 间隔避免浏览器拦截
+    }
+    markCompleted(5);
+}
+
+// ── 页面切换 ──
+const __origNav = navigateTo;
+navigateTo = function(page) {
+    __origNav(page);
+    if (page === 'export') loadExportData();
+};
 </script>
 
 </body>
