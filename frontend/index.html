@@ -519,6 +519,88 @@
             color: var(--text-secondary);
             font-size: 13px;
         }
+
+        /* ── Adapt Page ── */
+        .version-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .version-opt {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            background: var(--card-bg);
+        }
+        .version-opt:hover { border-color: var(--primary); }
+        .version-opt.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .version-opt .v-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .version-opt .v-desc { font-size: 12px; color: var(--text-secondary); }
+
+        .script-output {
+            background: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #313244;
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .script-output::-webkit-scrollbar { width: 6px; }
+        .script-output::-webkit-scrollbar-track { background: transparent; }
+        .script-output::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+
+        .adapt-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .adapt-actions .btn-sm { font-size: 13px; padding: 7px 16px; }
+
+        .btn-copy {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .btn-copy:hover { background: var(--primary-hover); }
+        .btn-copy.copied { background: var(--success); border-color: var(--success); }
+
+        .btn-download {
+            background: var(--card-bg);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .btn-retry {
+            background: var(--card-bg);
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+
+        /* YAML syntax highlight helpers */
+        .yaml-key { color: #89b4fa; }
+        .yaml-val { color: #a6e3a1; }
+        .yaml-comment { color: #6c7086; }
+
+        .adapt-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
     </style>
 </head>
 <body>
@@ -642,12 +724,55 @@
     </section>
 
     <section class="page" id="page-adapt">
-        <div class="card">
-            <h3>逐场景剧本改编</h3>
+        <div id="adaptEmpty" class="card">
             <div class="placeholder">
                 <div class="line"></div>
-                <p>逐场景进行精细化的剧本转换</p>
-                <p style="margin-top:8px;font-size:12px">PR18 实现</p>
+                <p>请先完成「上传解读」和「角色场景」步骤</p>
+                <p style="margin-top:8px;font-size:12px">分析数据将自动带入此页面</p>
+            </div>
+        </div>
+        <div id="adaptContent" class="hidden">
+            <!-- 版本选择 -->
+            <div class="card">
+                <div class="adapt-section-title">选择剧本版本</div>
+                <div class="version-selector" id="versionSelector">
+                    <div class="version-opt selected" data-version="movie" onclick="selectVersion('movie')">
+                        <div class="v-name">电影版</div>
+                        <div class="v-desc">紧凑节奏，视觉化优先</div>
+                    </div>
+                    <div class="version-opt" data-version="tv_series" onclick="selectVersion('tv_series')">
+                        <div class="v-name">电视剧版</div>
+                        <div class="v-desc">多集分季，角色成长弧线</div>
+                    </div>
+                    <div class="version-opt" data-version="stage_play" onclick="selectVersion('stage_play')">
+                        <div class="v-name">舞台剧版</div>
+                        <div class="v-desc">有限场景，强化对话冲突</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 摘要信息 -->
+            <div class="card" id="adaptSummary" style="margin-top:16px">
+                <div class="adapt-section-title">当前数据</div>
+                <div id="adaptSummaryText" style="font-size:13px;color:var(--text-secondary)"></div>
+            </div>
+
+            <!-- 改编按钮 -->
+            <div style="text-align:center;margin-top:16px">
+                <button class="btn btn-primary" id="btnAdapt" onclick="startAdapt()">
+                    开始改编
+                </button>
+            </div>
+
+            <!-- 剧本输出 -->
+            <div class="card hidden" id="scriptOutputCard" style="margin-top:16px">
+                <div class="adapt-section-title">生成剧本</div>
+                <div class="script-output" id="scriptOutput"></div>
+                <div class="adapt-actions">
+                    <button class="btn-sm btn-copy" id="btnCopy" onclick="copyScript()">复制剧本</button>
+                    <button class="btn-sm btn-download" onclick="downloadScript()">下载 YAML</button>
+                    <button class="btn-sm btn-retry" onclick="startAdapt()">重新生成</button>
+                </div>
             </div>
         </div>
     </section>
@@ -766,6 +891,8 @@ async function startAnalyze() {
 
         renderResult(data.data);
         localStorage.setItem('novelAnalysis', JSON.stringify(data.data));
+        localStorage.setItem('novelRawText', text);
+        localStorage.setItem('novelTitle', title);
         markCompleted(1);
     } catch (err) {
         alert('请求失败: ' + err.message);
@@ -1108,8 +1235,139 @@ navigateTo = function(page) {
         if (loadMgmtData()) {
             renderMgmtPage();
         }
+    } else if (page === 'adapt') {
+        loadAdaptData();
     }
 };
+
+// ── 剧本改编 ──
+let adaptVersion = 'movie';
+let adaptScriptText = '';
+
+function selectVersion(ver) {
+    adaptVersion = ver;
+    document.querySelectorAll('.version-opt').forEach(el => {
+        el.classList.toggle('selected', el.dataset.version === ver);
+    });
+}
+
+function loadAdaptData() {
+    const raw = localStorage.getItem('novelAnalysis');
+    const rawText = localStorage.getItem('novelRawText');
+    const title = localStorage.getItem('novelTitle') || '未命名';
+
+    if (!raw || !rawText) {
+        document.getElementById('adaptEmpty').classList.remove('hidden');
+        document.getElementById('adaptContent').classList.add('hidden');
+        return;
+    }
+
+    document.getElementById('adaptEmpty').classList.add('hidden');
+    document.getElementById('adaptContent').classList.remove('hidden');
+
+    // 显示摘要
+    const d = JSON.parse(raw);
+    const s = d.summary;
+    document.getElementById('adaptSummaryText').textContent =
+        title + ' — ' +
+        (s.total_characters || 0) + '个角色, ' +
+        (s.total_scenes || 0) + '个场景, ' +
+        (s.total_dialogues || 0) + '条对话 | 共 ' +
+        rawText.length + ' 字';
+}
+
+async function startAdapt() {
+    const rawText = localStorage.getItem('novelRawText');
+    const title = localStorage.getItem('novelTitle') || '';
+
+    if (!rawText || rawText.length < 50) {
+        alert('请先在「上传解读」页上传小说并完成分析');
+        return;
+    }
+
+    const btn = document.getElementById('btnAdapt');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> 改编中...';
+    document.getElementById('scriptOutputCard').classList.add('hidden');
+
+    try {
+        const resp = await fetch('/api/convert/fusion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: rawText, title, version: adaptVersion }),
+        });
+        const data = await resp.json();
+
+        if (data.code !== 0) {
+            alert('改编失败: ' + (data.message || '未知错误'));
+            return;
+        }
+
+        renderScript(data.data);
+        localStorage.setItem('novelScript', JSON.stringify(data.data));
+        markCompleted(3);
+    } catch (err) {
+        alert('请求失败: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '开始改编';
+    }
+}
+
+function renderScript(data) {
+    const yaml = data.script.yaml || '';
+    adaptScriptText = yaml;
+
+    // 简单 YAML 语法高亮
+    const highlighted = yaml
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/^(#.*)$/gm, '<span class="yaml-comment">$1</span>')
+        .replace(/^(\s*)([\w\u4e00-\u9fff\-]+)(\s*:)/gm,
+            '$1<span class="yaml-key">$2</span>$3');
+
+    document.getElementById('scriptOutput').innerHTML = highlighted;
+    document.getElementById('scriptOutputCard').classList.remove('hidden');
+
+    // 更新摘要中的版本信息
+    const versionNames = { movie: '电影版', tv_series: '电视剧版', stage_play: '舞台剧版' };
+    const stats = data.script.stats;
+    let summaryExtra = '';
+    if (stats) {
+        summaryExtra = ' | ' + (stats.scene_count || 0) + '场, ' + (stats.character_count || 0) + '个角色';
+    }
+    const existing = document.getElementById('adaptSummaryText').textContent;
+    document.getElementById('adaptSummaryText').textContent =
+        existing.split(' | ' + (versionNames[adaptVersion] || '电影版'))[0] + ' | ' + (versionNames[adaptVersion] || '电影版') + summaryExtra;
+}
+
+function copyScript() {
+    if (!adaptScriptText) return;
+    navigator.clipboard.writeText(adaptScriptText).then(() => {
+        const btn = document.getElementById('btnCopy');
+        btn.textContent = '已复制!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = '复制剧本';
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(() => {
+        alert('复制失败，请手动选择文本复制');
+    });
+}
+
+function downloadScript() {
+    if (!adaptScriptText) return;
+    const title = localStorage.getItem('novelTitle') || '剧本';
+    const blob = new Blob([adaptScriptText], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = title + '_' + adaptVersion + '.yaml';
+    a.click();
+    URL.revokeObjectURL(url);
+}
 </script>
 
 </body>
