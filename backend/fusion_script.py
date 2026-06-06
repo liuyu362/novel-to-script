@@ -35,9 +35,11 @@ def _build_fusion_user_prompt(
     if chars.get("角色列表"):
         for c in chars["角色列表"]:
             role_tag = c.get("角色类型", "未知")
+            alias = c.get("别名", [])
+            alias_str = f"（别名：{'、'.join(alias)}）" if alias else ""
             parts.append(
                 f"- {c.get('姓名', '未知')}：{c.get('性别', '未知')}，"
-                f"{c.get('年龄', '未知')}，{role_tag}"
+                f"{c.get('年龄', '未知')}，{role_tag} {alias_str}"
             )
             if c.get("描述"):
                 parts.append(f"  {c.get('描述', '')}")
@@ -55,6 +57,8 @@ def _build_fusion_user_prompt(
             )
             if s.get("在场角色"):
                 parts.append(f"  出场角色：{'、'.join(s['在场角色'])}")
+            if s.get("关键事件"):
+                parts.append(f"  关键事件：{'、'.join(s['关键事件'])}")
             if s.get("描述"):
                 parts.append(f"  内容：{s['描述']}")
         parts.append(f"\n共 {scenes['总数']} 个场景")
@@ -62,7 +66,7 @@ def _build_fusion_user_prompt(
     else:
         parts.append("(未提取到场景)")
 
-    # 3. 对话/叙述分析摘要
+    # 3. 对话/叙述分析 — 注入统计 + 关键对话片段
     parts.append("\n\n## 已分析文本结构\n")
     parts.append(f"总片段 {dialogue.get('总数', 0)}：")
     parts.append(f"对话 {dialogue.get('对话数', 0)} 条，叙述 {dialogue.get('叙述数', 0)} 段")
@@ -73,6 +77,25 @@ def _build_fusion_user_prompt(
             key=lambda x: x[1], reverse=True
         )
         parts.append(f"发言者排名：{'、'.join(f'{k}({v})' for k, v in speaker_list[:5])}")
+
+    # 注入关键对话片段（供 LLM 改写对白参考）
+    segments = dialogue.get("片段列表", [])
+    if segments:
+        parts.append("\n\n### 关键对话片段（供改编对白参考）\n")
+        # 只取前 40 条，防止 Prompt 过长
+        for seg in segments[:40]:
+            seg_type = seg.get("类型", "")
+            if seg_type == "对话":
+                speaker = seg.get("发言者", "未知")
+                content = seg.get("内容", "")[:100]  # 截断长对话
+                tone = seg.get("语气", "")
+                tone_str = f"（{tone}）" if tone else ""
+                parts.append(f"- [{speaker}]{tone_str}：{content}")
+            elif seg_type == "叙述":
+                content = seg.get("内容", "")[:100]
+                parts.append(f"- [叙述]：{content}")
+        if len(segments) > 40:
+            parts.append(f"  ...（共 {len(segments)} 条片段，仅展示前 40 条）")
 
     # 4. 原文
     parts.append(f"\n\n## 小说原文\n\n{text}\n")
