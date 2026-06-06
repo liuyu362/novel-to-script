@@ -1458,6 +1458,16 @@ async function startAnalyze() {
         return;
     }
 
+    // 判断是否是全新作品：如果文本和当前作品原文不同，清除 currentWorkId 以创建新作品
+    const currentRawText = localStorage.getItem('novelRawText') || '';
+    if (text !== currentRawText) {
+        localStorage.removeItem('currentWorkId');
+        // 清除旧的步骤数据，避免混淆
+        localStorage.removeItem('novelAnalysis');
+        localStorage.removeItem('novelScript');
+        localStorage.removeItem('novelLogic');
+    }
+
     const chapterWise = document.getElementById('chkChapterWise')?.checked ?? true;
     const btn = document.getElementById('btnAnalyze');
     btn.disabled = true;
@@ -1484,6 +1494,13 @@ async function startAnalyze() {
         localStorage.setItem('novelRawText', text);
         localStorage.setItem('novelTitle', title);
         markCompleted(1);
+        // 同步到后端
+        syncToBackend({
+            title: title || '未命名作品',
+            original_text: text,
+            analysis_data: JSON.stringify(data.data),
+            current_step: 1,
+        });
     } catch (err) {
         alert('请求失败: ' + err.message);
     } finally {
@@ -1822,6 +1839,8 @@ function saveMgmtData() {
         d.场景分析.场景列表 = mgmtScenes;
         d.场景分析.总数 = mgmtScenes.length;
         localStorage.setItem('novelAnalysis', JSON.stringify(d));
+        // 同步到后端
+        syncToBackend({ analysis_data: JSON.stringify(d), current_step: 2 });
     } catch (e) {}
 }
 
@@ -1939,6 +1958,8 @@ async function startAdapt() {
         renderScript(data.data);
         localStorage.setItem('novelScript', JSON.stringify(data.data));
         markCompleted(3);
+        // 同步到后端
+        syncToBackend({ script_data: JSON.stringify(data.data), current_step: 3 });
     } catch (err) {
         alert('请求失败: ' + err.message);
     } finally {
@@ -2009,6 +2030,8 @@ function saveScriptEdit() {
             const data = JSON.parse(raw);
             data.剧本.yaml文本 = newText;
             localStorage.setItem('novelScript', JSON.stringify(data));
+            // 同步到后端
+            syncToBackend({ script_data: JSON.stringify(data) });
         } catch(e) {}
     }
 }
@@ -2141,6 +2164,8 @@ async function startDetect() {
         // 保存到 localStorage，防止刷新丢失
         localStorage.setItem('novelLogic', JSON.stringify(data.data));
         markCompleted(4);
+        // 同步到后端
+        syncToBackend({ logic_data: JSON.stringify(data.data), current_step: 4 });
     } catch (err) {
         alert('请求失败: ' + err.message);
     } finally {
@@ -2860,7 +2885,18 @@ async function confirmWorkModal() {
         });
         const data = await resp.json();
         if (data.code !== 0) { alert('创建失败: ' + data.message); btn.disabled = false; btn.textContent = '创建'; return; }
+        // 新作品：清除旧作品的所有数据
+        localStorage.removeItem('novelAnalysis');
+        localStorage.removeItem('novelScript');
+        localStorage.removeItem('novelLogic');
+        localStorage.setItem('currentWorkId', data.data.id);
+        localStorage.setItem('novelRawText', text);
+        localStorage.setItem('novelTitle', title || '未命名作品');
         document.getElementById('workModalOverlay').classList.add('hidden');
+        // 填充上传页面
+        document.getElementById('novelTitle').value = title || '';
+        document.getElementById('novelText').value = text;
+        document.getElementById('resultPanel').classList.add('hidden');
         loadWorksList();
     } catch(e) {
         alert('创建失败: ' + e.message);
@@ -2893,6 +2929,40 @@ function escapeHtml(s) {
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+}
+
+// ── 后端同步 ──
+// 将当前作品数据同步到后端，如果作品不存在则先创建
+async function syncToBackend(fields) {
+    let workId = localStorage.getItem('currentWorkId');
+    const title = localStorage.getItem('novelTitle') || '未命名作品';
+    const rawText = localStorage.getItem('novelRawText') || '';
+
+    try {
+        if (!workId) {
+            // 作品不存在，先创建
+            const resp = await fetch('/api/works', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, original_text: rawText }),
+            });
+            const d = await resp.json();
+            if (d.code !== 0) return;
+            workId = d.data.id;
+            localStorage.setItem('currentWorkId', workId);
+        }
+
+        // 更新字段
+        const resp = await fetch('/api/works/' + workId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fields),
+        });
+        const d = await resp.json();
+        if (d.code !== 0) console.warn('syncToBackend failed:', d.message);
+    } catch(e) {
+        console.warn('syncToBackend error:', e.message);
+    }
 }
 
 // 页面加载时自动加载作品列表
