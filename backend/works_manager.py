@@ -1,9 +1,10 @@
 """
-作品管理模块 — SQLite 数据库操作
+作品管理模块 — SQLite 数据库操作（多用户版）
 
 表结构：
   works:
     id              INTEGER PRIMARY KEY AUTOINCREMENT
+    user_id         INTEGER REFERENCES users(id)  — 所属用户
     title           TEXT    作品标题
     original_text   TEXT    小说原文
     analysis_data   TEXT    综合解读结果 JSON（对应 localStorage novelAnalysis）
@@ -29,6 +30,13 @@ def _get_conn() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     if need_init:
         _init_db(conn)
+    # 即使文件已存在（如 users 表先创建），也检查 works 表是否存在
+    else:
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='works'"
+        ).fetchone()
+        if not row:
+            _init_db(conn)
     return conn
 
 
@@ -37,6 +45,7 @@ def _init_db(conn: sqlite3.Connection):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS works (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER DEFAULT NULL REFERENCES users(id),
             title           TEXT    NOT NULL DEFAULT '未命名作品',
             original_text   TEXT    DEFAULT '',
             analysis_data   TEXT    DEFAULT NULL,
@@ -55,18 +64,18 @@ def _now() -> str:
     return datetime.now().isoformat(sep=" ", timespec="seconds")
 
 
-# ── CRUD 操作 ──────────────────────────────────────────────────
+# ── CRUD 操作（全部带 user_id） ────────────────────────────────────
 
-def create_work(title: str, text: str) -> int:
-    """新建作品，返回新作品 ID"""
+def create_work(title: str, text: str, user_id: int) -> int:
+    """新建作品，绑定 user_id，返回新作品 ID"""
     now = _now()
     conn = _get_conn()
     try:
         cur = conn.execute(
             """INSERT INTO works
-               (title, original_text, current_step, created_at, updated_at)
-               VALUES (?, ?, 1, ?, ?)""",
-            (title or "未命名作品", text, now, now),
+               (user_id, title, original_text, current_step, created_at, updated_at)
+               VALUES (?, ?, ?, 1, ?, ?)""",
+            (user_id, title or "未命名作品", text, now, now),
         )
         conn.commit()
         return cur.lastrowid
@@ -74,8 +83,8 @@ def create_work(title: str, text: str) -> int:
         conn.close()
 
 
-def list_works() -> list[dict]:
-    """作品列表（摘要，不含原文/分析结果）"""
+def list_works(user_id: int) -> list[dict]:
+    """作品列表（摘要，仅当前用户）"""
     conn = _get_conn()
     try:
         rows = conn.execute(
@@ -83,27 +92,30 @@ def list_works() -> list[dict]:
                       LENGTH(original_text) AS text_length,
                       created_at, updated_at
                FROM works
-               ORDER BY updated_at DESC"""
+               WHERE user_id = ?
+               ORDER BY updated_at DESC""",
+            (user_id,),
         ).fetchall()
         return [_row_to_summary(r) for r in rows]
     finally:
         conn.close()
 
 
-def get_work(work_id: int) -> dict | None:
-    """读取单部作品完整数据（含原文、分析结果）"""
+def get_work(work_id: int, user_id: int) -> dict | None:
+    """读取单部作品完整数据（校验归属）"""
     conn = _get_conn()
     try:
         row = conn.execute(
-            "SELECT * FROM works WHERE id = ?", (work_id,)
+            "SELECT * FROM works WHERE id = ? AND user_id = ?",
+            (work_id, user_id),
         ).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()
 
 
-def update_work(work_id: int, **kwargs) -> bool:
-    """更新作品字段（支持部分更新）
+def update_work(work_id: int, user_id: int, **kwargs) -> bool:
+    """更新作品字段（校验归属，支持部分更新）
 
     kwargs 允许的键：
         title / original_text / analysis_data / script_data /
@@ -119,26 +131,30 @@ def update_work(work_id: int, **kwargs) -> bool:
 
     sets = ", ".join(f"{k} = ?" for k in updates)
     values = list(updates.values())
-    values.append(_now())   # updated_at
+    values.append(_now())    # updated_at
     values.append(work_id)
+    values.append(user_id)
 
     conn = _get_conn()
     try:
-        conn.execute(
-            f"UPDATE works SET {sets}, updated_at = ? WHERE id = ?",
+        cur = conn.execute(
+            f"UPDATE works SET {sets}, updated_at = ? WHERE id = ? AND user_id = ?",
             values,
         )
         conn.commit()
-        return True
+        return cur.rowcount > 0
     finally:
         conn.close()
 
 
-def delete_work(work_id: int) -> bool:
-    """删除作品，返回是否成功"""
+def delete_work(work_id: int, user_id: int) -> bool:
+    """删除作品（校验归属），返回是否成功"""
     conn = _get_conn()
     try:
-        cur = conn.execute("DELETE FROM works WHERE id = ?", (work_id,))
+        cur = conn.execute(
+            "DELETE FROM works WHERE id = ? AND user_id = ?",
+            (work_id, user_id),
+        )
         conn.commit()
         return cur.rowcount > 0
     finally:
