@@ -95,6 +95,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     """将 FastAPI 的 HTTPException 转为统一格式"""
     code_map = {
         400: ErrorCode.INVALID_PARAMS,
+        401: ErrorCode.UNAUTHORIZED,
         422: ErrorCode.INVALID_PARAMS,
         503: ErrorCode.LLM_NOT_READY,
         500: ErrorCode.INTERNAL_ERROR,
@@ -742,33 +743,38 @@ class UpdateWorkRequest(BaseModel):
 
 
 @app.get("/api/works")
-def api_list_works():
-    """获取作品列表（摘要，不含原文和分析结果）"""
-    works = list_works()
+def api_list_works(request: Request):
+    """获取作品列表（摘要，不含原文和分析结果）—— 需登录"""
+    user_id = get_current_user(request)
+    works = list_works(user_id)
     return success_response(works, message=f"共 {len(works)} 部作品")
 
 
 @app.post("/api/works")
-def api_create_work(req: CreateWorkRequest):
-    """新建作品"""
-    work_id = create_work(req.title or "未命名作品", req.original_text)
-    work = get_work(work_id)
+def api_create_work(req: CreateWorkRequest, request: Request):
+    """新建作品 —— 需登录"""
+    user_id = get_current_user(request)
+    work_id = create_work(req.title or "未命名作品", req.original_text, user_id)
+    work = get_work(work_id, user_id)
     return success_response(work, message="作品创建成功")
 
 
 @app.get("/api/works/{work_id:int}")
-def api_get_work(work_id: int):
-    """获取单部作品完整数据（含原文、分析结果等）"""
-    work = get_work(work_id)
+def api_get_work(work_id: int, request: Request):
+    """获取单部作品完整数据（含原文、分析结果等）—— 需登录"""
+    user_id = get_current_user(request)
+    work = get_work(work_id, user_id)
     if work is None:
         return error_response(ErrorCode.NOT_FOUND, f"作品 #{work_id} 不存在")
     return success_response(work, message="获取成功")
 
 
 @app.put("/api/works/{work_id:int}")
-def api_update_work(work_id: int, req: UpdateWorkRequest):
-    """更新作品字段（支持部分更新）"""
-    if get_work(work_id) is None:
+def api_update_work(work_id: int, req: UpdateWorkRequest, request: Request):
+    """更新作品字段（支持部分更新）—— 需登录"""
+    user_id = get_current_user(request)
+
+    if get_work(work_id, user_id) is None:
         return error_response(ErrorCode.NOT_FOUND, f"作品 #{work_id} 不存在")
 
     updates = {}
@@ -786,22 +792,24 @@ def api_update_work(work_id: int, req: UpdateWorkRequest):
         updates["current_step"] = req.current_step
 
     if not updates:
-        return success_response(get_work(work_id), message="无任何变更")
+        return success_response(get_work(work_id, user_id), message="无任何变更")
 
-    ok = update_work(work_id, **updates)
+    ok = update_work(work_id, user_id, **updates)
     if not ok:
         return error_response(ErrorCode.INTERNAL_ERROR, "更新失败")
 
-    return success_response(get_work(work_id), message="更新成功")
+    return success_response(get_work(work_id, user_id), message="更新成功")
 
 
 @app.delete("/api/works/{work_id:int}")
-def api_delete_work(work_id: int):
-    """删除作品"""
-    if get_work(work_id) is None:
+def api_delete_work(work_id: int, request: Request):
+    """删除作品 —— 需登录"""
+    user_id = get_current_user(request)
+
+    if get_work(work_id, user_id) is None:
         return error_response(ErrorCode.NOT_FOUND, f"作品 #{work_id} 不存在")
 
-    ok = delete_work(work_id)
+    ok = delete_work(work_id, user_id)
     if not ok:
         return error_response(ErrorCode.INTERNAL_ERROR, "删除失败")
 
