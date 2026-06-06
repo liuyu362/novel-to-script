@@ -24,6 +24,13 @@ VALID_EMOTIONS = {
 VALID_ROLE_TYPES = {"主角", "配角", "反派", "路人", "其他", ""}
 VALID_GENDERS = {"男", "女", "不详", ""}
 
+# ─── v2.1 新增合法值定义 ─────────────────────
+VALID_SHOT_SIZES = {"远景", "全景", "中景", "近景", "特写", "大特写", ""}
+VALID_ANGLES = {"平视", "俯视", "仰视", "鸟瞰", "倾斜", ""}
+VALID_MOVEMENTS = {"固定", "推", "拉", "摇", "移", "跟", "升降", "手持", ""}
+VALID_TRANSITIONS = {"切至", "淡入淡出", "淡入", "淡出", "叠化", "划像", "黑场", ""}
+VALID_SLUGLINE_INDICATORS = {"内景", "外景", "内景/外景"}
+
 
 # ─── 数据类 ─────────────────────────────────
 
@@ -154,6 +161,25 @@ def validate_and_fix_script(script: Script) -> tuple[Script, ValidationReport]:
             if not getattr(scene, field, None):
                 setattr(scene, field, "")
 
+        # 场景标题行：确保存在，可自动生成
+        if not scene.场景标题行:
+            indoor_outdoor = "外景"
+            if scene.地点 and any(w in scene.地点 for w in ["室", "房", "厅", "店", "馆", "屋", "内"]):
+                indoor_outdoor = "内景"
+            time_map = {"清晨": "晨", "早晨": "晨", "白天": "日", "下午": "日", "傍晚": "暮", "夜晚": "夜", "深夜": "夜", "午夜": "夜", "凌晨": "夜"}
+            time_short = time_map.get(scene.时间, scene.时间) if scene.时间 else ""
+            scene.场景标题行 = f"{indoor_outdoor}. {scene.地点 or '未知'} - {time_short}" if (scene.地点 or time_short) else ""
+            if scene.场景标题行:
+                report.fixes_applied.append(f"场景列表[{i}].场景标题行 → '{scene.场景标题行}'")
+
+        # 转场：验证合法性
+        if scene.转场 and scene.转场 not in VALID_TRANSITIONS:
+            report.issues.append(ValidationIssue(
+                f"场景列表[{i}].转场", "fixed",
+                f"无效转场值 '{scene.转场}'，已清空"
+            ))
+            scene.转场 = ""
+
         # 确保 出场角色 是列表
         if not isinstance(scene.出场角色, list):
             scene.出场角色 = []
@@ -194,6 +220,40 @@ def validate_and_fix_script(script: Script) -> tuple[Script, ValidationReport]:
             # 备注 可选
             if not act.备注:
                 act.备注 = ""
+
+            # ── v2.1 镜头信息验证 ──
+            if act.景别 and act.景别 not in VALID_SHOT_SIZES:
+                report.issues.append(ValidationIssue(
+                    f"场景列表[{i}].内容[{j}].景别", "fixed",
+                    f"无效景别值 '{act.景别}'，已清空"
+                ))
+                act.景别 = ""
+            if not act.景别:
+                act.景别 = ""
+
+            if act.角度 and act.角度 not in VALID_ANGLES:
+                report.issues.append(ValidationIssue(
+                    f"场景列表[{i}].内容[{j}].角度", "fixed",
+                    f"无效角度值 '{act.角度}'，已清空"
+                ))
+                act.角度 = ""
+            if not act.角度:
+                act.角度 = ""
+
+            if act.运动 and act.运动 not in VALID_MOVEMENTS:
+                report.issues.append(ValidationIssue(
+                    f"场景列表[{i}].内容[{j}].运动", "fixed",
+                    f"无效运动值 '{act.运动}'，已清空"
+                ))
+                act.运动 = ""
+            if not act.运动:
+                act.运动 = ""
+
+            # ── v2.1 入场/退场标记 ──
+            if not act.入场:
+                act.入场 = ""
+            if not act.退场:
+                act.退场 = ""
 
             valid_acts.append(act)
 

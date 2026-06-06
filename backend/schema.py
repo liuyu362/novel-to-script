@@ -15,6 +15,11 @@ class Act:
     角色: str = ""      # 关联角色名
     情绪: str = ""      # 情绪/语气
     备注: str = ""      # 补充说明
+    景别: str = ""      # 镜头景别：远景/全景/中景/近景/特写/大特写
+    角度: str = ""      # 拍摄角度：平视/俯视/仰视/鸟瞰/倾斜
+    运动: str = ""      # 镜头运动：固定/推/拉/摇/移/跟/升降/手持
+    入场: str = ""      # 角色入场描述（该角色在此动作首次进入场景）
+    退场: str = ""      # 角色退场描述（该角色在此动作离开场景）
 
 
 @dataclass
@@ -40,6 +45,8 @@ class Scene:
     天气: str = ""
     出场角色: list[str] = field(default_factory=list)
     内容: list[Act] = field(default_factory=list)
+    场景标题行: str = ""     # 标准 slugline：内景/外景. 地点 - 时间（如 "内景. 咖啡馆 - 日"）
+    转场: str = ""           # 转场方式：切至/淡入淡出/淡入/淡出/叠化/划像/黑场
 
 
 @dataclass

@@ -78,6 +78,11 @@ def _dict_to_act(data: dict) -> Act:
         角色=data.get("角色", ""),
         情绪=data.get("情绪", ""),
         备注=data.get("备注", ""),
+        景别=data.get("景别", ""),
+        角度=data.get("角度", ""),
+        运动=data.get("运动", ""),
+        入场=data.get("入场", ""),
+        退场=data.get("退场", ""),
     )
 
 
@@ -91,6 +96,8 @@ def _dict_to_scene(data: dict) -> Scene:
         天气=data.get("天气", ""),
         出场角色=data.get("出场角色", []),
         内容=[_dict_to_act(a) for a in data.get("内容", [])],
+        场景标题行=data.get("场景标题行", ""),
+        转场=data.get("转场", ""),
     )
 
 
