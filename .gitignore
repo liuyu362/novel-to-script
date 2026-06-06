@@ -15,3 +15,5 @@ Thumbs.db
 
 # Logs
 *.log
+backend/works.db
+test_works_manager.py
