@@ -15,6 +15,7 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # 作品管理数据库
 backend/works.db

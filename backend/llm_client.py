@@ -44,8 +44,8 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
                 {"role": "user", "content": user_prompt},
             ],
             temperature=0.7,
-            max_tokens=4096,
-            timeout=120,
+            max_tokens=8192,
+            timeout=180,
         )
         return response.choices[0].message.content
 

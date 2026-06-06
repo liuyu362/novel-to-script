@@ -529,6 +529,33 @@
         .scene-card .scene-chars { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
         .scene-card .actions { display: flex; gap: 6px; flex-shrink: 0; }
 
+        /* ── 用户区 / 登录弹窗 ── */
+        .user-area { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .user-area .nickname { color: var(--text-secondary); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .user-area .btn-sm { font-size: 12px; padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .user-area .btn-login:hover { border-color: var(--primary); color: var(--primary); }
+        .user-area .btn-logout { color: var(--danger); border-color: #fecaca; }
+        .user-area .btn-logout:hover { background: #fef2f2; }
+        .auth-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000;
+        }
+        .auth-modal-overlay.hidden { display: none; }
+        .auth-box {
+            background: var(--card-bg); border-radius: var(--radius); padding: 28px 32px;
+            width: 360px; max-width: 90vw; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+        }
+        .auth-box h2 { margin: 0 0 18px; font-size: 18px; text-align: center; }
+        .auth-box .tab-row { display: flex; gap: 0; margin-bottom: 18px; border-bottom: 2px solid var(--border); }
+        .auth-box .tab-btn { flex: 1; padding: 8px 0; background: none; border: none; font-size: 14px; font-weight: 500; color: var(--text-secondary); cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .auth-box .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .auth-box .form-err { color: var(--danger); font-size: 12px; margin-top: 6px; min-height: 18px; }
+        .auth-box .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+        .auth-box .btn-row .btn { flex: 1; }
+        .page.hidden-by-auth { display: none !important; }
+        .steps.hidden-by-auth { display: none !important; }
+
         /* ── Modal ── */
         .modal-overlay {
             position: fixed;
@@ -1393,6 +1420,28 @@
 
 </main>
 
+<!-- ── 登录/注册弹窗 ── -->
+<div class="auth-modal-overlay hidden" id="authModalOverlay" onclick="if(event.target===this)closeAuthModal()">
+    <div class="auth-box">
+        <h2 id="authTitle">登录</h2>
+        <div class="tab-row">
+            <button class="tab-btn active" id="authTabLogin" onclick="switchAuthTab('login')">登录</button>
+            <button class="tab-btn" id="authTabRegister" onclick="switchAuthTab('register')">注册</button>
+        </div>
+        <div id="authForm">
+            <label id="authNicknameLabel" class="hidden-by-auth">昵称</label>
+            <input type="text" id="authNickname" class="hidden-by-auth" placeholder="输入昵称（2-20字）" maxlength="20">
+            <label>密码</label>
+            <input type="password" id="authPassword" placeholder="输入密码（≥4位）" maxlength="32">
+            <div class="form-err" id="authErr"></div>
+            <div class="btn-row">
+                <button class="btn-sm" onclick="closeAuthModal()">取消</button>
+                <button class="btn-sm primary" id="authSubmitBtn" onclick="submitAuth()">登录</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 /* ═══════════════════════════════════════════════════
    ═  全局认证系统
@@ -1451,7 +1500,7 @@ const API_BASE = '';
 const dot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 
-fetch('/api/health')
+apiFetch('/api/health')
     .then(r => r.json())
     .then(d => {
         dot.className = 'dot online';
