@@ -6,6 +6,7 @@ import json
 import re
 from backend.llm_client import call_llm
 from backend.errors import AppException, ErrorCode
+from backend.json_utils import parse_llm_json
 
 
 DIALOGUE_EXTRACT_PROMPT = """你是一位专业的文学分析师，擅长从小说文本中分离对话与叙述。
@@ -117,7 +118,7 @@ def extract_dialogue(text: str) -> dict:
     cleaned = _clean_json(raw)
 
     try:
-        data = json.loads(cleaned)
+        data = parse_llm_json(cleaned)
     except json.JSONDecodeError:
         raise AppException(
             ErrorCode.LLM_PARSE_ERROR,

@@ -9,6 +9,7 @@
 import json
 import re
 from backend.llm_client import call_llm
+from backend.json_utils import parse_llm_json
 
 LOGIC_CHECK_SYSTEM = """你是一名资深剧本编辑，专精于逻辑矛盾检测。你的任务是仔细阅读给出的剧本YAML和小说原文，检测以下四类问题：
 
@@ -115,7 +116,7 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
 
     try:
         # 尝试直接解析
-        data = json.loads(raw)
+        data = parse_llm_json(raw)
         issues = data.get("问题列表", [])
         summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
     except json.JSONDecodeError:
@@ -123,7 +124,7 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
         match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
         if match:
             try:
-                data = json.loads(match.group(1))
+                data = parse_llm_json(match.group(1))
                 issues = data.get("问题列表", [])
                 summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
             except json.JSONDecodeError:
@@ -131,7 +132,7 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
                 match2 = re.search(r'\{[\s\S]*"问题列表"[\s\S]*\}', raw)
                 if match2:
                     try:
-                        data = json.loads(match2.group(0))
+                        data = parse_llm_json(match2.group(0))
                         issues = data.get("问题列表", [])
                         summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
                     except json.JSONDecodeError:

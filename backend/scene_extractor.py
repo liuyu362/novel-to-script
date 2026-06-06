@@ -6,6 +6,7 @@ import json
 import re
 from backend.llm_client import call_llm
 from backend.errors import AppException, ErrorCode
+from backend.json_utils import parse_llm_json
 
 
 SCENE_EXTRACT_PROMPT = """你是一位专业的文学分析师，擅长从小说文本中提取和分类场景信息。
@@ -103,7 +104,7 @@ def extract_scenes(text: str) -> dict:
     cleaned = _clean_json(raw)
 
     try:
-        scenes = json.loads(cleaned)
+        scenes = parse_llm_json(cleaned)
     except json.JSONDecodeError:
         raise AppException(
             ErrorCode.LLM_PARSE_ERROR,
