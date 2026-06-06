@@ -23,3 +23,4 @@ backend/works.db
 test_works_manager.py
 test_api_works.py
 test_pr24_integration.py
+test_pr27_step3.py
