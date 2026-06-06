@@ -13,6 +13,7 @@ class ErrorCode(IntEnum):
     TEXT_TOO_SHORT = 4002    # 文本太短
     TEXT_TOO_LONG = 4003     # 文本太长
     TITLE_TOO_LONG = 4004    # 标题太长
+    NOT_FOUND = 4005          # 资源不存在（作品/章节等）
 
     # 服务端错误 5xxx
     LLM_NOT_READY = 5001     # LLM 服务未配置
@@ -29,6 +30,7 @@ ERROR_MESSAGES = {
     ErrorCode.TEXT_TOO_SHORT: "小说文本太短，至少需要 50 字",
     ErrorCode.TEXT_TOO_LONG: "小说文本太长，最多支持 50 万字",
     ErrorCode.TITLE_TOO_LONG: "标题过长，最多 200 字",
+    ErrorCode.NOT_FOUND: "请求的资源不存在",
     ErrorCode.LLM_NOT_READY: "LLM 服务未配置，请联系管理员配置 API Key",
     ErrorCode.LLM_CALL_FAILED: "AI 服务调用失败，请稍后重试",
     ErrorCode.LLM_TIMEOUT: "AI 服务响应超时，请稍后重试",

@@ -28,6 +28,13 @@ from backend.dialogue_separator import extract_dialogue
 from backend.fusion_script import generate_fusion_script
 from backend.novel_analyzer import analyze_novel
 from backend.logic_checker import check_logic
+from backend.works_manager import (
+    create_work,
+    list_works,
+    get_work,
+    update_work,
+    delete_work,
+)
 
 app = FastAPI(
     title="Novel to Script API",
@@ -695,6 +702,124 @@ def check_logic_endpoint(req: LogicCheckRequest):
         "问题列表": result["问题列表"],
         "汇总": summary,
     }, message=f"检测完成：共发现 {summary['总数']} 个问题（{summary['严重']}严重/{summary['警告']}警告/{summary['提示']}提示）")
+
+
+# ── 作品管理 API ──
+
+class CreateWorkRequest(BaseModel):
+    """新建作品请求体"""
+    title: str = Field(
+        default="",
+        max_length=200,
+        description="作品标题（可选，默认为『未命名作品』）",
+    )
+    original_text: str = Field(
+        ...,
+        min_length=1,
+        max_length=500000,
+        description="小说原文内容",
+    )
+
+
+class UpdateWorkRequest(BaseModel):
+    """更新作品请求体（所有字段可选）"""
+    title: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="新标题",
+    )
+    original_text: Optional[str] = Field(
+        default=None,
+        max_length=500000,
+        description="新原文",
+    )
+    analysis_data: Optional[str] = Field(
+        default=None,
+        description="综合解读结果 JSON",
+    )
+    script_data: Optional[str] = Field(
+        default=None,
+        description="剧本生成结果 JSON",
+    )
+    logic_data: Optional[str] = Field(
+        default=None,
+        description="逻辑检测结果 JSON",
+    )
+    current_step: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=5,
+        description="当前步骤 (1=解读, 2=管理, 3=改编, 4=检测, 5=导出)",
+    )
+
+
+@app.get("/api/works")
+def api_list_works():
+    """获取作品列表（摘要信息，不含原文和分析结果）"""
+    works = list_works()
+    return success_response(works, message=f"共 {len(works)} 部作品")
+
+
+@app.post("/api/works")
+def api_create_work(req: CreateWorkRequest):
+    """新建作品"""
+    work_id = create_work(req.title or "未命名作品", req.original_text)
+    work = get_work(work_id)
+    return success_response(work, message="作品创建成功")
+
+
+@app.get("/api/works/{work_id:int}")
+def api_get_work(work_id: int):
+    """获取单部作品完整数据（含原文、分析结果等）"""
+    work = get_work(work_id)
+    if work is None:
+        return error_response(ErrorCode.NOT_FOUND, f"作品 #{work_id} 不存在")
+    return success_response(work, message="获取成功")
+
+
+@app.put("/api/works/{work_id:int}")
+def api_update_work(work_id: int, req: UpdateWorkRequest):
+    """更新作品字段（支持部分更新）"""
+    # 检查作品是否存在
+    if get_work(work_id) is None:
+        return error_response(ErrorCode.NOT_FOUND, f"作品 #{work_id} 不存在")
+
+    # 构建更新字段
+    updates = {}
+    if req.title is not None:
+        updates["title"] = req.title
+    if req.original_text is not None:
+        updates["original_text"] = req.original_text
+    if req.analysis_data is not None:
+        updates["analysis_data"] = req.analysis_data
+    if req.script_data is not None:
+        updates["script_data"] = req.script_data
+    if req.logic_data is not None:
+        updates["logic_data"] = req.logic_data
+    if req.current_step is not None:
+        updates["current_step"] = req.current_step
+
+    if not updates:
+        return success_response(get_work(work_id), message="无任何变更")
+
+    ok = update_work(work_id, **updates)
+    if not ok:
+        return error_response(ErrorCode.INTERNAL_ERROR, "更新失败")
+
+    return success_response(get_work(work_id), message="更新成功")
+
+
+@app.delete("/api/works/{work_id:int}")
+def api_delete_work(work_id: int):
+    """删除作品"""
+    if get_work(work_id) is None:
+        return error_response(ErrorCode.NOT_FOUND, f"作品 #{work_id} 不存在")
+
+    ok = delete_work(work_id)
+    if not ok:
+        return error_response(ErrorCode.INTERNAL_ERROR, "删除失败")
+
+    return success_response({"deleted_id": work_id}, message="删除成功")
 
 
 # ── 前端静态文件挂载 ──
