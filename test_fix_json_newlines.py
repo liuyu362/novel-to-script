@@ -1,12 +1,12 @@
 """
-测试 dialogue_separator 的 fix_json_string_newlines 和 parse_llm_json
-验证 LLM 返回的含换行文本的 JSON 能被正确解析
+测试 json_utils 的 fix_json_string_newlines、fix_array_as_object 和 parse_llm_json
+验证 LLM 返回的各种畸形 JSON 能被正确解析
 """
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from backend.json_utils import fix_json_string_newlines, parse_llm_json
+from backend.json_utils import fix_json_string_newlines, fix_array_as_object, parse_llm_json
 
 passed = 0
 failed = 0
@@ -94,6 +94,61 @@ check("空字符串", fix_json_string_newlines("") == "")
 print("\n=== 测试 6: 没有换行的字符串 ===")
 clean = '{"key": "hello world"}'
 check("无换行字符串不变", fix_json_string_newlines(clean) == clean)
+
+print("\n=== 测试 7: 数组误写为对象（顶层） ===")
+# LLM 输出 {"外剧概要": [ "序号":1, "类型":"校武" ]} 这种格式
+array_as_obj = '{"外剧概要": ["序号":1, "类型":"校武", "内容":"打斗场景"]}'
+result = parse_llm_json(array_as_obj)
+check("数组转对象解析成功", result is not None)
+check("外剧概要是 dict", isinstance(result.get("外剧概要"), dict))
+check("序号=1", result["外剧概要"]["序号"] == 1)
+check("类型=校武", result["外剧概要"]["类型"] == "校武")
+
+print("\n=== 测试 8: 数组误写为对象（嵌套） ===")
+# 片段列表中的元素被写成数组
+nested_array_as_obj = '''{
+  "片段列表": [
+    [
+      "序号": 1,
+      "类型": "对话",
+      "发言者": "张三",
+      "内容": "你好"
+    ],
+    [
+      "序号": 2,
+      "类型": "叙述",
+      "内容": "环境描写"
+    ]
+  ]
+}'''
+result = parse_llm_json(nested_array_as_obj)
+check("嵌套数组转对象解析成功", result is not None)
+check("片段列表是 list", isinstance(result.get("片段列表"), list))
+check("片段列表长度=2", len(result["片段列表"]) == 2)
+check("第一个是 dict", isinstance(result["片段列表"][0], dict))
+check("第一个序号=1", result["片段列表"][0].get("序号") == 1)
+check("第二个序号=2", result["片段列表"][1].get("序号") == 2)
+
+print("\n=== 测试 9: 正常数组不受影响 ===")
+normal_array = '{"片段列表": [{"序号": 1}, {"序号": 2}]}'
+result = parse_llm_json(normal_array)
+check("正常数组解析成功", result is not None)
+check("正常数组保持为 list", isinstance(result.get("片段列表"), list))
+check("正常数组长度=2", len(result["片段列表"]) == 2)
+
+print("\n=== 测试 10: 混合换行+数组转对象 ===")
+mixed = '''{
+  "片段列表": [
+    [
+      "序号": 1,
+      "内容": "第一行
+第二行"
+    ]
+  ]
+}'''
+result = parse_llm_json(mixed)
+check("混合修复解析成功", result is not None)
+check("内容包含换行", "第一行\n第二行" in result["片段列表"][0].get("内容", ""))
 
 print(f"\n{'='*40}")
 print(f"结果: {passed}/{passed+failed} 通过")
