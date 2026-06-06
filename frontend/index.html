@@ -56,6 +56,10 @@
             align-items: center;
             gap: 6px;
         }
+        .header-right { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .header-right .nickname { color: var(--text-secondary); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .header-right .btn-logout { font-size: 12px; padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid #fecaca; background: var(--card-bg); cursor: pointer; font-family: inherit; color: var(--danger); transition: all 0.15s; }
+        .header-right .btn-logout:hover { background: #fef2f2; }
         .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
         .dot.online { background: var(--success); }
         .dot.offline { background: #ef4444; }
@@ -1030,10 +1034,7 @@
         <span class="dot checking" id="statusDot"></span>
         <span id="statusText">检测中...</span>
     </span>
-    <div class="user-area" id="userArea">
-        <button class="btn-sm btn-login" onclick="showAuthModal('login')">登录</button>
-        <button class="btn-sm" onclick="showAuthModal('register')">注册</button>
-    </div>
+    <div class="header-right" id="headerRight"></div>
 </header>
 
 <nav class="steps" id="steps">
@@ -1449,22 +1450,35 @@
 const TOKEN_KEY = 'auth_token';
 const NICKNAME_KEY = 'auth_nickname';
 
-// ── Token 工具函数 ──
+function escHtml(str) { var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function isLoggedIn() { return !!getToken(); }
-function saveAuth(token, nickname) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(NICKNAME_KEY, nickname || '');
-    updateUserUI();
-}
-function clearAuth() {
+
+// ── 页面加载时检查登录态 ──
+(function checkAuth() {
+    if (!isLoggedIn()) {
+        window.location.href = '/login.html';
+        return;
+    }
+    // 更新右上角用户 UI
+    const area = document.getElementById('headerRight');
+    if (area) {
+        const nickname = localStorage.getItem(NICKNAME_KEY) || '用户';
+        area.innerHTML =
+            '<span class="nickname">' + escHtml(nickname) + '</span>' +
+            '<button class="btn-logout" onclick="handleLogout()">注销</button>';
+    }
+})();
+
+function handleLogout() {
+    if (!confirm('确定注销当前用户？')) return;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(NICKNAME_KEY);
-    updateUserUI();
-    showAuthModal('login');
+    ['currentWorkId','novelAnalysis','novelScript','novelLogic','novelRawText','novelTitle'].forEach(k => localStorage.removeItem(k));
+    window.location.href = '/login.html';
 }
 
-// ── 封装 API 请求（自动带 token，401 → 弹登录框）──
+// ── 封装 API 请求（自动带 token，401 → 跳转登录）──
 async function apiFetch(url, options = {}) {
     const token = getToken();
     const headers = options.headers || {};
@@ -1472,119 +1486,13 @@ async function apiFetch(url, options = {}) {
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
     const resp = await fetch(url, { ...options, headers });
     if (resp.status === 401 || resp.status === 403) {
-        clearAuth();
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(NICKNAME_KEY);
+        window.location.href = '/login.html';
         throw new Error('未登录或登录已过期，请重新登录');
     }
     return resp;
 }
-
-// ── 更新右上角用户 UI ──
-function updateUserUI() {
-    const area = document.getElementById('userArea');
-    const loggedIn = isLoggedIn();
-    const nickname = localStorage.getItem(NICKNAME_KEY) || '';
-    if (loggedIn) {
-        area.innerHTML =
-            '<span class="nickname" title="' + escAttr(nickname) + '">' + esc(nickname || '用户') + '</span>' +
-            '<button class="btn-sm btn-logout" onclick="handleLogout()">注销</button>';
-        // 显示主内容
-        document.querySelectorAll('.hidden-by-auth').forEach(el => el.classList.remove('hidden-by-auth'));
-    } else {
-        area.innerHTML =
-            '<button class="btn-sm btn-login" onclick="showAuthModal(\'login\')">登录</button>' +
-            '<button class="btn-sm" onclick="showAuthModal(\'register\')">注册</button>';
-        // 隐藏步骤条和主内容，只显示作品管理页的空状态
-        document.querySelectorAll('.page:not(#page-works)').forEach(el => el.classList.add('hidden-by-auth'));
-        document.getElementById('steps').classList.add('hidden-by-auth');
-    }
-}
-
-function handleLogout() {
-    if (!confirm('确定注销当前用户？')) return;
-    clearAuth();
-    // 清空前端 localStorage 数据
-    ['currentWorkId','novelAnalysis','novelScript','novelLogic','novelRawText','novelTitle'].forEach(k => localStorage.removeItem(k));
-    // 回到作品页
-    navigateTo('works');
-    loadWorks();
-}
-
-// ── 登录/注册弹窗 ──
-let authMode = 'login';  // 'login' | 'register'
-
-function showAuthModal(mode) {
-    authMode = mode || 'login';
-    document.getElementById('authModalOverlay').classList.remove('hidden');
-    switchAuthTab(authMode);
-    document.getElementById('authErr').textContent = '';
-    document.getElementById('authPassword').value = '';
-    document.getElementById('authNickname').value = '';
-}
-
-function closeAuthModal() {
-    document.getElementById('authModalOverlay').classList.add('hidden');
-}
-
-function switchAuthTab(mode) {
-    authMode = mode;
-    document.getElementById('authTabLogin').classList.toggle('active', mode === 'login');
-    document.getElementById('authTabRegister').classList.toggle('active', mode === 'register');
-    document.getElementById('authTitle').textContent = mode === 'login' ? '登录' : '注册';
-    document.getElementById('authSubmitBtn').textContent = mode === 'login' ? '登录' : '注册';
-    // 注册时显示昵称输入框
-    document.getElementById('authNicknameLabel').classList.toggle('hidden-by-auth', mode === 'login');
-    document.getElementById('authNickname').classList.toggle('hidden-by-auth', mode === 'login');
-}
-
-function submitAuth() {
-    const nickname = document.getElementById('authNickname').value.trim();
-    const password = document.getElementById('authPassword').value;
-    const errEl = document.getElementById('authErr');
-    errEl.textContent = '';
-
-    if (authMode === 'register' && nickname.length < 2) {
-        errEl.textContent = '昵称至少2个字符';
-        return;
-    }
-    if (password.length < 4) {
-        errEl.textContent = '密码至少4个字符';
-        return;
-    }
-
-    const url = authMode === 'login'
-        ? '/api/users/login'
-        : '/api/users/register';
-    const body = authMode === 'login'
-        ? { nickname, password }
-        : { nickname, password };
-
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    })
-    .then(r => r.json())
-    .then(d => {
-        if (d.code !== 0) {
-            errEl.textContent = d.message || '操作失败';
-            return;
-        }
-        saveAuth(d.data.token, d.data.nickname);
-        closeAuthModal();
-        loadWorks();  // 登录后刷新作品列表
-    })
-    .catch(err => { errEl.textContent = '网络错误：' + err.message; });
-}
-
-// ── 页面加载时初始化 ──
-updateUserUI();
-if (!isLoggedIn()) {
-    showAuthModal('login');
-}
-
-/* ═══════════════════════════════════════════════════
-   ═  原有代码（兼容 apiFetch）
-   ═══════════════════════════════════════════════════ */
 
 const API_BASE = '';
 

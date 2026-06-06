@@ -346,8 +346,9 @@ class LogicCheckRequest(BaseModel):
 
 
 @app.post("/api/convert")
-def convert_novel(req: ConvertRequest):
+def convert_novel(req: ConvertRequest, request: Request):
     """接收小说文本，调用 LLM 生成结构化剧本"""
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -406,11 +407,12 @@ def convert_novel(req: ConvertRequest):
 
 
 @app.post("/api/validate")
-def validate_yaml(req: ValidateRequest):
+def validate_yaml(req: ValidateRequest, request: Request):
     """独立的 YAML 验证接口（不调用 LLM，仅验证格式）
 
     用于调试：直接粘贴 YAML 文本，查看验证报告。
     """
+    _ = get_current_user(request)  # 鉴权
     try:
         script = parse_yaml_to_script(req.yaml_text, source_title=req.source_title)
     except AppException as e:
@@ -431,11 +433,12 @@ def validate_yaml(req: ValidateRequest):
 
 
 @app.post("/api/split")
-def preview_split(req: ConvertRequest):
+def preview_split(req: ConvertRequest, request: Request):
     """章节分割预览接口（不调用 LLM，仅展示分割结果）
 
     用于在正式转换前预览章节分割情况。
     """
+    _ = get_current_user(request)  # 鉴权
     if req.text.strip():
         detected = detect_chapter_pattern(req.text)
         result = split_chapters(req.text)
@@ -468,7 +471,7 @@ def preview_split(req: ConvertRequest):
 
 
 @app.post("/api/convert/batch")
-def batch_convert(req: BatchConvertRequest):
+def batch_convert(req: BatchConvertRequest, request: Request):
     """批量转换：自动分割章节 → 逐章调用 LLM → 汇总返回
 
     流程：
@@ -476,6 +479,7 @@ def batch_convert(req: BatchConvertRequest):
     2. 逐章调用 LLM 生成剧本
     3. 返回每章结果 + 总体统计
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -573,12 +577,13 @@ def batch_convert(req: BatchConvertRequest):
 
 
 @app.post("/api/analyze/characters")
-def analyze_characters(req: AnalyzeCharactersRequest):
+def analyze_characters(req: AnalyzeCharactersRequest, request: Request):
     """角色列表自动提取
 
     从小说文本中识别所有出场角色，
     输出姓名、性别、年龄、角色类型、描述等结构化信息。
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -592,12 +597,13 @@ def analyze_characters(req: AnalyzeCharactersRequest):
 
 
 @app.post("/api/analyze/scenes")
-def analyze_scenes(req: AnalyzeScenesRequest):
+def analyze_scenes(req: AnalyzeScenesRequest, request: Request):
     """场景列表自动提取
 
     从小说文本中识别所有场景/地点转换，
     输出地点、时间、天气、出场角色、关键事件等结构化信息。
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -611,12 +617,13 @@ def analyze_scenes(req: AnalyzeScenesRequest):
 
 
 @app.post("/api/analyze/dialogue")
-def analyze_dialogue(req: AnalyzeDialogueRequest):
+def analyze_dialogue(req: AnalyzeDialogueRequest, request: Request):
     """对白与叙述文本分离
 
     从小说文本中区分对话（双引号内/角色说话）和叙述性文字，
     标记每条对话的发言者、语气、引号风格。
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -630,12 +637,13 @@ def analyze_dialogue(req: AnalyzeDialogueRequest):
 
 
 @app.post("/api/convert/fusion")
-def fusion_convert(req: FusionConvertRequest):
+def fusion_convert(req: FusionConvertRequest, request: Request):
     """融合分析生成剧本
 
     串联角色提取 + 场景提取 + 对话分离三阶段分析，
     将分析结果注入 Prompt 生成上下文更丰富的剧本。
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -656,13 +664,14 @@ def fusion_convert(req: FusionConvertRequest):
 
 
 @app.post("/api/analyze/novel")
-def analyze_novel_endpoint(req: AnalyzeNovelRequest):
+def analyze_novel_endpoint(req: AnalyzeNovelRequest, request: Request):
     """综合解读小说
 
     支持两种模式：
     - chapter_wise=True（默认）：先按章节分割，逐章分析后合并，适合长文本
     - chapter_wise=False：全文一次性分析，适合短文本
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -693,7 +702,7 @@ def analyze_novel_endpoint(req: AnalyzeNovelRequest):
 
 
 @app.post("/api/check/logic")
-def check_logic_endpoint(req: LogicCheckRequest):
+def check_logic_endpoint(req: LogicCheckRequest, request: Request):
     """剧本逻辑矛盾检测
 
     对生成的剧本进行四类逻辑问题检测：
@@ -702,6 +711,7 @@ def check_logic_endpoint(req: LogicCheckRequest):
     - 时间线：时间顺序混乱、跨度过大无交代
     - 情节漏洞：因果关系断裂、人物行为逻辑矛盾
     """
+    _ = get_current_user(request)  # 鉴权
     if not is_llm_ready():
         raise AppException(ErrorCode.LLM_NOT_READY)
 
@@ -861,12 +871,30 @@ if os.path.isdir(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend_static")
 
 
-@app.get("/{full_path:path}")
-async def serve_frontend(full_path: str):
-    """SPA 路由：所有非 /api 的 GET 请求返回前端入口（包括根路径 /）"""
+@app.get("/")
+async def serve_root():
+    """根路径 → 直接返回 login.html（首次访问即登录页）"""
+    login_path = os.path.join(FRONTEND_DIR, "login.html")
+    if os.path.isfile(login_path):
+        return FileResponse(login_path, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.isfile(index_path):
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    return JSONResponse({"message": "Frontend not found"}, status_code=404)
+
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """SPA 路由：.html 文件直接返回，其余返回 index.html"""
+    if full_path == "":
+        return FileResponse(os.path.join(FRONTEND_DIR, "login.html"), headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    if full_path.endswith(".html") or "." in full_path:
+        file_path = os.path.join(FRONTEND_DIR, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
     return JSONResponse({"message": "Frontend not found"}, status_code=404)
 
 
