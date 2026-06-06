@@ -525,6 +525,33 @@
         .scene-card .scene-chars { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
         .scene-card .actions { display: flex; gap: 6px; flex-shrink: 0; }
 
+        /* ── 用户区 / 登录弹窗 ── */
+        .user-area { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .user-area .nickname { color: var(--text-secondary); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .user-area .btn-sm { font-size: 12px; padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+        .user-area .btn-login:hover { border-color: var(--primary); color: var(--primary); }
+        .user-area .btn-logout { color: var(--danger); border-color: #fecaca; }
+        .user-area .btn-logout:hover { background: #fef2f2; }
+        .auth-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000;
+        }
+        .auth-modal-overlay.hidden { display: none; }
+        .auth-box {
+            background: var(--card-bg); border-radius: var(--radius); padding: 28px 32px;
+            width: 360px; max-width: 90vw; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+        }
+        .auth-box h2 { margin: 0 0 18px; font-size: 18px; text-align: center; }
+        .auth-box .tab-row { display: flex; gap: 0; margin-bottom: 18px; border-bottom: 2px solid var(--border); }
+        .auth-box .tab-btn { flex: 1; padding: 8px 0; background: none; border: none; font-size: 14px; font-weight: 500; color: var(--text-secondary); cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .auth-box .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .auth-box .form-err { color: var(--danger); font-size: 12px; margin-top: 6px; min-height: 18px; }
+        .auth-box .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+        .auth-box .btn-row .btn { flex: 1; }
+        .page.hidden-by-auth { display: none !important; }
+        .steps.hidden-by-auth { display: none !important; }
+
         /* ── Modal ── */
         .modal-overlay {
             position: fixed;
@@ -1003,6 +1030,10 @@
         <span class="dot checking" id="statusDot"></span>
         <span id="statusText">检测中...</span>
     </span>
+    <div class="user-area" id="userArea">
+        <button class="btn-sm btn-login" onclick="showAuthModal('login')">登录</button>
+        <button class="btn-sm" onclick="showAuthModal('register')">注册</button>
+    </div>
 </header>
 
 <nav class="steps" id="steps">
@@ -1388,14 +1419,180 @@
 
 </main>
 
+<!-- ── 登录/注册弹窗 ── -->
+<div class="auth-modal-overlay hidden" id="authModalOverlay" onclick="if(event.target===this)closeAuthModal()">
+    <div class="auth-box">
+        <h2 id="authTitle">登录</h2>
+        <div class="tab-row">
+            <button class="tab-btn active" id="authTabLogin" onclick="switchAuthTab('login')">登录</button>
+            <button class="tab-btn" id="authTabRegister" onclick="switchAuthTab('register')">注册</button>
+        </div>
+        <div id="authForm">
+            <label id="authNicknameLabel" class="hidden-by-auth">昵称</label>
+            <input type="text" id="authNickname" class="hidden-by-auth" placeholder="输入昵称（2-20字）" maxlength="20">
+            <label>密码</label>
+            <input type="password" id="authPassword" placeholder="输入密码（≥4位）" maxlength="32">
+            <div class="form-err" id="authErr"></div>
+            <div class="btn-row">
+                <button class="btn-sm" onclick="closeAuthModal()">取消</button>
+                <button class="btn-sm primary" id="authSubmitBtn" onclick="submitAuth()">登录</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+/* ═══════════════════════════════════════════════════
+   ═  全局认证系统
+   ═══════════════════════════════════════════════════ */
+
+const TOKEN_KEY = 'auth_token';
+const NICKNAME_KEY = 'auth_nickname';
+
+// ── Token 工具函数 ──
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function isLoggedIn() { return !!getToken(); }
+function saveAuth(token, nickname) {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(NICKNAME_KEY, nickname || '');
+    updateUserUI();
+}
+function clearAuth() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(NICKNAME_KEY);
+    updateUserUI();
+    showAuthModal('login');
+}
+
+// ── 封装 API 请求（自动带 token，401 → 弹登录框）──
+async function apiFetch(url, options = {}) {
+    const token = getToken();
+    const headers = options.headers || {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    const resp = await apiFetch(url, { ...options, headers });
+    if (resp.status === 401 || resp.status === 403) {
+        clearAuth();
+        throw new Error('未登录或登录已过期，请重新登录');
+    }
+    return resp;
+}
+
+// ── 更新右上角用户 UI ──
+function updateUserUI() {
+    const area = document.getElementById('userArea');
+    const loggedIn = isLoggedIn();
+    const nickname = localStorage.getItem(NICKNAME_KEY) || '';
+    if (loggedIn) {
+        area.innerHTML =
+            '<span class="nickname" title="' + escAttr(nickname) + '">' + esc(nickname || '用户') + '</span>' +
+            '<button class="btn-sm btn-logout" onclick="handleLogout()">注销</button>';
+        // 显示主内容
+        document.querySelectorAll('.hidden-by-auth').forEach(el => el.classList.remove('hidden-by-auth'));
+    } else {
+        area.innerHTML =
+            '<button class="btn-sm btn-login" onclick="showAuthModal(\'login\')">登录</button>' +
+            '<button class="btn-sm" onclick="showAuthModal(\'register\')">注册</button>';
+        // 隐藏步骤条和主内容，只显示作品管理页的空状态
+        document.querySelectorAll('.page:not(#page-works)').forEach(el => el.classList.add('hidden-by-auth'));
+        document.getElementById('steps').classList.add('hidden-by-auth');
+    }
+}
+
+function handleLogout() {
+    if (!confirm('确定注销当前用户？')) return;
+    clearAuth();
+    // 清空前端 localStorage 数据
+    ['currentWorkId','novelAnalysis','novelScript','novelLogic','novelRawText','novelTitle'].forEach(k => localStorage.removeItem(k));
+    // 回到作品页
+    navigateTo('works');
+    loadWorks();
+}
+
+// ── 登录/注册弹窗 ──
+let authMode = 'login';  // 'login' | 'register'
+
+function showAuthModal(mode) {
+    authMode = mode || 'login';
+    document.getElementById('authModalOverlay').classList.remove('hidden');
+    switchAuthTab(authMode);
+    document.getElementById('authErr').textContent = '';
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authNickname').value = '';
+}
+
+function closeAuthModal() {
+    document.getElementById('authModalOverlay').classList.add('hidden');
+}
+
+function switchAuthTab(mode) {
+    authMode = mode;
+    document.getElementById('authTabLogin').classList.toggle('active', mode === 'login');
+    document.getElementById('authTabRegister').classList.toggle('active', mode === 'register');
+    document.getElementById('authTitle').textContent = mode === 'login' ? '登录' : '注册';
+    document.getElementById('authSubmitBtn').textContent = mode === 'login' ? '登录' : '注册';
+    // 注册时显示昵称输入框
+    document.getElementById('authNicknameLabel').classList.toggle('hidden-by-auth', mode === 'login');
+    document.getElementById('authNickname').classList.toggle('hidden-by-auth', mode === 'login');
+}
+
+function submitAuth() {
+    const nickname = document.getElementById('authNickname').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errEl = document.getElementById('authErr');
+    errEl.textContent = '';
+
+    if (authMode === 'register' && nickname.length < 2) {
+        errEl.textContent = '昵称至少2个字符';
+        return;
+    }
+    if (password.length < 4) {
+        errEl.textContent = '密码至少4个字符';
+        return;
+    }
+
+    const url = authMode === 'login'
+        ? '/api/users/login'
+        : '/api/users/register';
+    const body = authMode === 'login'
+        ? { nickname, password }
+        : { nickname, password };
+
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.code !== 0) {
+            errEl.textContent = d.message || '操作失败';
+            return;
+        }
+        saveAuth(d.data.token, d.data.nickname);
+        closeAuthModal();
+        loadWorks();  // 登录后刷新作品列表
+    })
+    .catch(err => { errEl.textContent = '网络错误：' + err.message; });
+}
+
+// ── 页面加载时初始化 ──
+updateUserUI();
+if (!isLoggedIn()) {
+    showAuthModal('login');
+}
+
+/* ═══════════════════════════════════════════════════
+   ═  原有代码（兼容 apiFetch）
+   ═══════════════════════════════════════════════════ */
+
 const API_BASE = '';
 
 // ── API 状态检测 ──
 const dot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 
-fetch('/api/health')
+apiFetch('/api/health')
     .then(r => r.json())
     .then(d => {
         dot.className = 'dot online';
@@ -1477,7 +1674,7 @@ async function startAnalyze() {
     document.getElementById('resultPanel').classList.add('hidden');
 
     try {
-        const resp = await fetch('/api/analyze/novel', {
+        const resp = await apiFetch('/api/analyze/novel', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, title, chapter_wise: chapterWise }),
@@ -1943,7 +2140,7 @@ async function startAdapt() {
     document.getElementById('scriptOutputCard').classList.add('hidden');
 
     try {
-        const resp = await fetch('/api/convert/fusion', {
+        const resp = await apiFetch('/api/convert/fusion', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: rawText, title, version: adaptVersion }),
@@ -2147,7 +2344,7 @@ async function startDetect() {
     btn.innerHTML = '<span class="spinner"></span> 检测中...';
 
     try {
-        const resp = await fetch('/api/check/logic', {
+        const resp = await apiFetch('/api/check/logic', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ script_yaml: scriptYaml, original_text: rawText, title }),
@@ -2796,7 +2993,7 @@ async function loadWorksList() {
     const tbody = document.getElementById('worksTbody');
     const empty = document.getElementById('worksEmpty');
     try {
-        const resp = await fetch('/api/works');
+        const resp = await apiFetch('/api/works');
         const data = await resp.json();
         if (data.code !== 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
         const works = data.data || [];
@@ -2826,7 +3023,7 @@ async function loadWorksList() {
 
 async function openWork(id) {
     try {
-        const resp = await fetch('/api/works/' + id);
+        const resp = await apiFetch('/api/works/' + id);
         const data = await resp.json();
         if (data.code !== 0) { alert('加载作品失败: ' + data.message); return; }
         const w = data.data;
@@ -2878,7 +3075,7 @@ async function confirmWorkModal() {
     if (text.length < 50) { alert('小说正文至少需要 50 字'); return; }
     btn.disabled = true; btn.textContent = '创建中...';
     try {
-        const resp = await fetch('/api/works', {
+        const resp = await apiFetch('/api/works', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, original_text: text }),
@@ -2907,7 +3104,7 @@ async function confirmWorkModal() {
 async function deleteWorkConfirm(id, title) {
     if (!confirm('确定要删除作品「' + title + '」吗？此操作不可恢复。')) return;
     try {
-        const resp = await fetch('/api/works/' + id, { method: 'DELETE' });
+        const resp = await apiFetch('/api/works/' + id, { method: 'DELETE' });
         const data = await resp.json();
         if (data.code !== 0) { alert('删除失败: ' + data.message); return; }
         // 如果删除的是当前作品，清理 localStorage
@@ -2941,7 +3138,7 @@ async function syncToBackend(fields) {
     try {
         if (!workId) {
             // 作品不存在，先创建
-            const resp = await fetch('/api/works', {
+            const resp = await apiFetch('/api/works', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, original_text: rawText }),
@@ -2953,7 +3150,7 @@ async function syncToBackend(fields) {
         }
 
         // 更新字段
-        const resp = await fetch('/api/works/' + workId, {
+        const resp = await apiFetch('/api/works/' + workId, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(fields),
