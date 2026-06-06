@@ -3,6 +3,7 @@
 从 .env 文件和环境变量加载配置
 """
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -19,6 +20,21 @@ load_dotenv(Path(__file__).parent / ".env")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+
+# JWT 配置
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = int(os.getenv("JWT_EXPIRE_HOURS", "720"))  # 默认 30 天（720小时）
+
+# 如果 .env 中没有 JWT_SECRET_KEY，自动生成一个并提示用户
+if not JWT_SECRET_KEY:
+    _generated = secrets.token_urlsafe(32)
+    print(
+        f"\n[WARN] JWT_SECRET_KEY 未配置！\n"
+        f"请在 backend/.env 中添加以下行：\n"
+        f"  JWT_SECRET_KEY={_generated}\n"
+        f"然后重启服务。\n"
+    )
 
 # 检查 API Key 是否已配置
 def is_llm_ready() -> bool:

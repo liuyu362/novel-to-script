@@ -40,7 +40,6 @@ from backend.user_manager import (
     register_user,
     login_user,
     get_current_user,
-    parse_token,
 )
 
 # 启动时初始化 users 表

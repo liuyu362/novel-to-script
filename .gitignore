@@ -20,6 +20,10 @@ logs/
 # 作品管理数据库
 backend/works.db
 
+# 环境变量（含密钥，禁止提交）
+backend/.env
+.env
+
 # 测试脚本
 test_works_manager.py
 test_api_works.py
