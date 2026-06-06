@@ -56,6 +56,10 @@
             align-items: center;
             gap: 6px;
         }
+        .header-right { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .header-right .nickname { color: var(--text-secondary); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .header-right .btn-logout { font-size: 12px; padding: 4px 12px; border-radius: var(--radius-sm); border: 1px solid #fecaca; background: var(--card-bg); cursor: pointer; font-family: inherit; color: var(--danger); transition: all 0.15s; }
+        .header-right .btn-logout:hover { background: #fef2f2; }
         .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
         .dot.online { background: var(--success); }
         .dot.offline { background: #ef4444; }
@@ -1003,6 +1007,7 @@
         <span class="dot checking" id="statusDot"></span>
         <span id="statusText">检测中...</span>
     </span>
+    <div class="header-right" id="headerRight"></div>
 </header>
 
 <nav class="steps" id="steps">
@@ -1389,6 +1394,57 @@
 </main>
 
 <script>
+/* ═══════════════════════════════════════════════════
+   ═  全局认证系统
+   ═══════════════════════════════════════════════════ */
+
+const TOKEN_KEY = 'auth_token';
+const NICKNAME_KEY = 'auth_nickname';
+
+function escHtml(str) { var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function isLoggedIn() { return !!getToken(); }
+
+// ── 页面加载时检查登录态 ──
+(function checkAuth() {
+    if (!isLoggedIn()) {
+        window.location.href = '/login.html';
+        return;
+    }
+    // 更新右上角用户 UI
+    const area = document.getElementById('headerRight');
+    if (area) {
+        const nickname = localStorage.getItem(NICKNAME_KEY) || '用户';
+        area.innerHTML =
+            '<span class="nickname">' + escHtml(nickname) + '</span>' +
+            '<button class="btn-logout" onclick="handleLogout()">注销</button>';
+    }
+})();
+
+function handleLogout() {
+    if (!confirm('确定注销当前用户？')) return;
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(NICKNAME_KEY);
+    ['currentWorkId','novelAnalysis','novelScript','novelLogic','novelRawText','novelTitle'].forEach(k => localStorage.removeItem(k));
+    window.location.href = '/login.html';
+}
+
+// ── 封装 API 请求（自动带 token，401 → 跳转登录）──
+async function apiFetch(url, options = {}) {
+    const token = getToken();
+    const headers = options.headers || {};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    const resp = await fetch(url, { ...options, headers });
+    if (resp.status === 401 || resp.status === 403) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(NICKNAME_KEY);
+        window.location.href = '/login.html';
+        throw new Error('未登录或登录已过期，请重新登录');
+    }
+    return resp;
+}
+
 const API_BASE = '';
 
 // ── API 状态检测 ──
@@ -1477,7 +1533,7 @@ async function startAnalyze() {
     document.getElementById('resultPanel').classList.add('hidden');
 
     try {
-        const resp = await fetch('/api/analyze/novel', {
+        const resp = await apiFetch('/api/analyze/novel', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, title, chapter_wise: chapterWise }),
@@ -1943,7 +1999,7 @@ async function startAdapt() {
     document.getElementById('scriptOutputCard').classList.add('hidden');
 
     try {
-        const resp = await fetch('/api/convert/fusion', {
+        const resp = await apiFetch('/api/convert/fusion', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: rawText, title, version: adaptVersion }),
@@ -2147,7 +2203,7 @@ async function startDetect() {
     btn.innerHTML = '<span class="spinner"></span> 检测中...';
 
     try {
-        const resp = await fetch('/api/check/logic', {
+        const resp = await apiFetch('/api/check/logic', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ script_yaml: scriptYaml, original_text: rawText, title }),
@@ -2796,7 +2852,7 @@ async function loadWorksList() {
     const tbody = document.getElementById('worksTbody');
     const empty = document.getElementById('worksEmpty');
     try {
-        const resp = await fetch('/api/works');
+        const resp = await apiFetch('/api/works');
         const data = await resp.json();
         if (data.code !== 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
         const works = data.data || [];
@@ -2826,7 +2882,7 @@ async function loadWorksList() {
 
 async function openWork(id) {
     try {
-        const resp = await fetch('/api/works/' + id);
+        const resp = await apiFetch('/api/works/' + id);
         const data = await resp.json();
         if (data.code !== 0) { alert('加载作品失败: ' + data.message); return; }
         const w = data.data;
@@ -2878,7 +2934,7 @@ async function confirmWorkModal() {
     if (text.length < 50) { alert('小说正文至少需要 50 字'); return; }
     btn.disabled = true; btn.textContent = '创建中...';
     try {
-        const resp = await fetch('/api/works', {
+        const resp = await apiFetch('/api/works', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, original_text: text }),
@@ -2907,7 +2963,7 @@ async function confirmWorkModal() {
 async function deleteWorkConfirm(id, title) {
     if (!confirm('确定要删除作品「' + title + '」吗？此操作不可恢复。')) return;
     try {
-        const resp = await fetch('/api/works/' + id, { method: 'DELETE' });
+        const resp = await apiFetch('/api/works/' + id, { method: 'DELETE' });
         const data = await resp.json();
         if (data.code !== 0) { alert('删除失败: ' + data.message); return; }
         // 如果删除的是当前作品，清理 localStorage
@@ -2941,7 +2997,7 @@ async function syncToBackend(fields) {
     try {
         if (!workId) {
             // 作品不存在，先创建
-            const resp = await fetch('/api/works', {
+            const resp = await apiFetch('/api/works', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, original_text: rawText }),
@@ -2953,7 +3009,7 @@ async function syncToBackend(fields) {
         }
 
         // 更新字段
-        const resp = await fetch('/api/works/' + workId, {
+        const resp = await apiFetch('/api/works/' + workId, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(fields),
