@@ -62,6 +62,59 @@
         .dot.checking { background: var(--warning); animation: pulse 1s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
+        /* ── Works Table ── */
+        .works-toolbar {
+            display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .works-table {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        .works-table th, .works-table td {
+            text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
+        }
+        .works-table th { font-weight: 600; color: var(--text-secondary); font-size: 12px; background: var(--bg); }
+        .works-table tr:hover td { background: var(--primary-light); }
+        .works-table .col-title { font-weight: 500; cursor: pointer; color: var(--primary); }
+        .works-table .col-title:hover { text-decoration: underline; }
+        .works-table .col-time { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+        .works-table .col-step { font-size: 12px; }
+        .works-table .col-actions { white-space: nowrap; text-align: right; }
+        .step-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 500;
+        }
+        .step-badge.s1 { background: #eef1ff; color: var(--primary); }
+        .step-badge.s2 { background: #fef3c7; color: #b45309; }
+        .step-badge.s3 { background: #d1fae5; color: #065f46; }
+        .step-badge.s4 { background: #fce7f3; color: #9d174d; }
+        .step-badge.s5 { background: #e0e7ff; color: #3730a3; }
+        .btn-sm {
+            padding: 5px 12px; font-size: 12px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border); background: var(--card-bg);
+            cursor: pointer; font-family: inherit; transition: all 0.15s;
+        }
+        .btn-sm:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm.danger { color: var(--danger); border-color: #fecaca; }
+        .btn-sm.danger:hover { background: #fef2f2; border-color: var(--danger); }
+        .btn-sm.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .btn-sm.primary:hover { background: var(--primary-hover); }
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--text-secondary);
+        }
+        .empty-state p { font-size: 14px; margin-top: 12px; }
+        .works-count { font-size: 12px; color: var(--text-secondary); }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-overlay.hidden { display: none; }
+        .modal-box {
+            background: var(--card-bg); border-radius: var(--radius);
+            padding: 24px; max-width: 520px; width: 90%; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .modal-box h3 { margin-bottom: 14px; }
+        .modal-box .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+
         /* ── Step Navigation ── */
         .steps {
             display: flex;
@@ -953,7 +1006,10 @@
 </header>
 
 <nav class="steps" id="steps">
-    <div class="step active" data-page="upload">
+    <div class="step active" data-page="works">
+        <span class="step-num">0</span>作品管理
+    </div>
+    <div class="step" data-page="upload">
         <span class="step-num">1</span>上传解读
     </div>
     <div class="step" data-page="characters">
@@ -972,7 +1028,46 @@
 
 <main class="main">
 
-    <section class="page active" id="page-upload">
+    <!-- ── 作品管理 ── -->
+    <section class="page active" id="page-works">
+        <div class="card">
+            <div class="works-toolbar">
+                <h3 style="margin:0;flex:1">作品列表</h3>
+                <button class="btn-sm primary" onclick="showCreateWorkModal()">+ 新建作品</button>
+            </div>
+            <table class="works-table" id="worksTable">
+                <thead>
+                    <tr>
+                        <th>作品标题</th>
+                        <th>当前步骤</th>
+                        <th>最后修改</th>
+                        <th style="text-align:right">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="worksTbody"></tbody>
+            </table>
+            <div class="empty-state hidden" id="worksEmpty">
+                <p>还没有作品，点击「新建作品」开始创作</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 新建/重命名 弹窗 ── -->
+    <div class="modal-overlay hidden" id="workModalOverlay" onclick="closeWorkModal(event)">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="workModalTitle">新建作品</h3>
+            <label for="workModalInput">作品标题</label>
+            <input type="text" id="workModalInput" placeholder="输入作品标题（可留空）" maxlength="200">
+            <label for="workModalText" style="margin-top:12px" id="workModalTextLabel">小说正文</label>
+            <textarea id="workModalText" placeholder="将小说文本粘贴到这里，不少于50字..." style="min-height:140px"></textarea>
+            <div class="btn-row">
+                <button class="btn-sm" onclick="closeWorkModal()">取消</button>
+                <button class="btn-sm primary" id="workModalConfirm" onclick="confirmWorkModal()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <section class="page" id="page-upload">
         <div class="card">
             <h3>上传解读</h3>
 
@@ -1313,7 +1408,7 @@ fetch('/api/health')
 
 // ── 步骤导航 ──
 const steps = document.querySelectorAll('#steps .step');
-let currentPage = 'upload';
+let currentPage = 'works';
 
 steps.forEach(step => {
     step.addEventListener('click', () => {
@@ -2665,10 +2760,143 @@ async function exportAll() {
 const __origNav = navigateTo;
 navigateTo = function(page) {
     __origNav(page);
+    if (page === 'works')  loadWorksList();
     if (page === 'export') loadExportData();
-    if (page === 'adapt') loadAdaptData();
+    if (page === 'adapt')  loadAdaptData();
     if (page === 'detect') loadDetectData();
 };
+
+// ── 作品管理 ──
+async function loadWorksList() {
+    const tbody = document.getElementById('worksTbody');
+    const empty = document.getElementById('worksEmpty');
+    try {
+        const resp = await fetch('/api/works');
+        const data = await resp.json();
+        if (data.code !== 0) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+        const works = data.data || [];
+        if (works.length === 0) {
+            tbody.innerHTML = ''; empty.classList.remove('hidden');
+        } else {
+            empty.classList.add('hidden');
+            tbody.innerHTML = works.map(w => {
+                const stepNames = ['', '上传解读', '角色场景', '剧本改编', '逻辑检测', '导出下载'];
+                const s = w.current_step || 1;
+                const time = w.updated_at ? w.updated_at.replace('T',' ').substring(0,16) : '-';
+                return '<tr>' +
+                    '<td class="col-title" onclick="openWork(' + w.id + ')">' + escapeHtml(w.title || '未命名作品') + '</td>' +
+                    '<td class="col-step"><span class="step-badge s' + s + '">' + (stepNames[s] || '步骤'+s) + '</span></td>' +
+                    '<td class="col-time">' + time + '</td>' +
+                    '<td class="col-actions">' +
+                        '<button class="btn-sm" onclick="openWork(' + w.id + ')">打开</button>' +
+                        '<button class="btn-sm danger" onclick="deleteWorkConfirm(' + w.id + ',\'' + escapeHtml(w.title||'未命名作品').replace(/'/g,"\\'") + '\')">删除</button>' +
+                    '</td>' +
+                '</tr>';
+            }).join('');
+        }
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--danger);text-align:center">加载失败: ' + escapeHtml(e.message) + '</td></tr>';
+    }
+}
+
+async function openWork(id) {
+    try {
+        const resp = await fetch('/api/works/' + id);
+        const data = await resp.json();
+        if (data.code !== 0) { alert('加载作品失败: ' + data.message); return; }
+        const w = data.data;
+        // 恢复数据到 localStorage
+        if (w.original_text) localStorage.setItem('novelRawText', w.original_text);
+        if (w.analysis_data) localStorage.setItem('novelAnalysis', w.analysis_data);
+        if (w.script_data)   localStorage.setItem('novelScript', w.script_data);
+        if (w.logic_data)    localStorage.setItem('novelLogic', w.logic_data);
+        localStorage.setItem('novelTitle', w.title || '未命名作品');
+        localStorage.setItem('currentWorkId', id);
+        // 填充上传页面
+        document.getElementById('novelTitle').value = w.title || '';
+        document.getElementById('novelText').value = w.original_text || '';
+        // 跳到上传解读页面
+        navigateTo('upload');
+        // 如果有已有数据，渲染
+        if (w.analysis_data) {
+            try {
+                const analysis = JSON.parse(w.analysis_data);
+                document.getElementById('resultPanel').classList.remove('hidden');
+                renderResult(analysis, analysis['分章信息'] || null);
+            } catch(e) {}
+        }
+    } catch(e) {
+        alert('加载作品失败: ' + e.message);
+    }
+}
+
+function showCreateWorkModal() {
+    document.getElementById('workModalTitle').textContent = '新建作品';
+    document.getElementById('workModalInput').value = '';
+    document.getElementById('workModalText').value = '';
+    document.getElementById('workModalTextLabel').style.display = '';
+    document.getElementById('workModalText').style.display = '';
+    document.getElementById('workModalConfirm').textContent = '创建';
+    document.getElementById('workModalOverlay').classList.remove('hidden');
+    document.getElementById('workModalInput').focus();
+}
+
+function closeWorkModal(e) {
+    if (e && e.target !== document.getElementById('workModalOverlay')) return;
+    document.getElementById('workModalOverlay').classList.add('hidden');
+}
+
+async function confirmWorkModal() {
+    const title = document.getElementById('workModalInput').value.trim();
+    const text = document.getElementById('workModalText').value.trim();
+    const btn = document.getElementById('workModalConfirm');
+    if (text.length < 50) { alert('小说正文至少需要 50 字'); return; }
+    btn.disabled = true; btn.textContent = '创建中...';
+    try {
+        const resp = await fetch('/api/works', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, original_text: text }),
+        });
+        const data = await resp.json();
+        if (data.code !== 0) { alert('创建失败: ' + data.message); btn.disabled = false; btn.textContent = '创建'; return; }
+        document.getElementById('workModalOverlay').classList.add('hidden');
+        loadWorksList();
+    } catch(e) {
+        alert('创建失败: ' + e.message);
+        btn.disabled = false; btn.textContent = '创建';
+    }
+}
+
+async function deleteWorkConfirm(id, title) {
+    if (!confirm('确定要删除作品「' + title + '」吗？此操作不可恢复。')) return;
+    try {
+        const resp = await fetch('/api/works/' + id, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.code !== 0) { alert('删除失败: ' + data.message); return; }
+        // 如果删除的是当前作品，清理 localStorage
+        if (localStorage.getItem('currentWorkId') == id) {
+            localStorage.removeItem('currentWorkId');
+            localStorage.removeItem('novelRawText');
+            localStorage.removeItem('novelAnalysis');
+            localStorage.removeItem('novelScript');
+            localStorage.removeItem('novelLogic');
+            localStorage.removeItem('novelTitle');
+        }
+        loadWorksList();
+    } catch(e) {
+        alert('删除失败: ' + e.message);
+    }
+}
+
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+// 页面加载时自动加载作品列表
+loadWorksList();
 </script>
 
 </body>
