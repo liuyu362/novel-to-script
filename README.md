@@ -2,6 +2,11 @@
 
 AI 辅助小说转剧本工具，将小说文本自动转换为结构化剧本（YAML 格式），降低改编门槛，提升创作效率。
 
+
+## Demo 视频
+
+> 待上传
+
 ## 目录结构
 
 ```
@@ -150,16 +155,6 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8000
 | DELETE | `/api/works/{id}` | 删除作品 |
 
 除注册/登录外，所有接口需在 Header 中携带 `Authorization: Bearer <token>`。
-
-## Demo 视频
-
-> 待上传
-
-## 开发记录
-
-- 全程通过 Pull Request 持续交付，每个 PR 只做一件事
-- PR 描述遵循规范：标题一句话 + 功能描述 + 实现思路 + 测试方式
-- 主要 PR 序列：PR33（前后端鉴权）→ PR34（逻辑检测修复）→ PR35（JWT 替换）→ PR36（Schema v2.1 专业字段）→ PR37（前端美化）
 
 ## 许可
 
