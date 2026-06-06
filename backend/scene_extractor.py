@@ -3,7 +3,9 @@
 从小说文本中识别所有场景，提取地点、时间、天气、出场角色等结构化信息
 """
 import json
+import os
 import re
+import datetime
 from backend.llm_client import call_llm
 from backend.errors import AppException, ErrorCode
 from backend.json_utils import parse_llm_json
@@ -106,9 +108,21 @@ def extract_scenes(text: str) -> dict:
     try:
         scenes = parse_llm_json(cleaned)
     except json.JSONDecodeError:
+        try:
+            log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+            os.makedirs(log_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            log_path = os.path.join(log_dir, f"scene_parse_error_{ts}.txt")
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(f"=== LLM Raw Output ({len(raw)} chars) ===\n")
+                f.write(raw)
+                f.write(f"\n\n=== Cleaned ({len(cleaned)} chars) ===\n")
+                f.write(cleaned)
+        except Exception:
+            log_path = "N/A"
         raise AppException(
             ErrorCode.LLM_PARSE_ERROR,
-            f"场景列表 JSON 解析失败。LLM 原始输出片段: {raw[:200]}"
+            f"场景列表 JSON 解析失败。调试日志: {log_path}\nLLM 原始输出片段: {raw[:200]}"
         )
 
     if not isinstance(scenes, list):

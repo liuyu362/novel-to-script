@@ -7,9 +7,28 @@
 - 情节漏洞：因果关系断裂、人物行为逻辑矛盾
 """
 import json
+import os
 import re
+import datetime
 from backend.llm_client import call_llm
 from backend.json_utils import parse_llm_json
+
+
+def _write_debug_log(step: str, raw: str):
+    """写入调试日志"""
+    try:
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        log_path = os.path.join(log_dir, f"logic_parse_error_{ts}.txt")
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write(f"Step: {step}\n")
+            f.write(f"Length: {len(raw)} chars\n")
+            f.write("=" * 60 + "\n")
+            f.write(raw)
+        return log_path
+    except Exception:
+        return None
 
 LOGIC_CHECK_SYSTEM = """你是一名资深剧本编辑，专精于逻辑矛盾检测。你的任务是仔细阅读给出的剧本YAML和小说原文，检测以下四类问题：
 
@@ -120,6 +139,7 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
         issues = data.get("问题列表", [])
         summary = data.get("汇总", {"总数": 0, "严重": 0, "警告": 0, "提示": 0})
     except json.JSONDecodeError:
+        _write_debug_log("logic_checker", raw)
         # 尝试从 markdown 代码块中提取
         match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw)
         if match:
