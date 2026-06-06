@@ -258,22 +258,156 @@ def fix_array_as_object(json_str: str) -> str:
     return _fix_inner(json_str)
 
 
+def _fix_truncated_json(json_str: str) -> str:
+    """修复被截断的 JSON（如 LLM max_tokens 不足导致输出不完整）。
+
+    找到最后一个完整闭合的 }（对象），截断后补全未闭合的括号。
+    如果没有完整对象，找到最后一个 , 截断并去掉尾部不完整内容后补全。
+
+    返回修复后的 JSON 字符串，如果无法修复则返回空字符串。
+    """
+    s = json_str
+
+    # 第一步：如果以未闭合的字符串结尾，去掉未闭合部分
+    in_string = False
+    esc = False
+    string_start = -1
+    for i, ch in enumerate(s):
+        if esc:
+            esc = False
+            continue
+        if ch == '\\':
+            esc = True
+            continue
+        if ch == '"':
+            if in_string:
+                in_string = False
+            else:
+                in_string = True
+                string_start = i
+    if in_string and string_start >= 0:
+        s = s[:string_start].rstrip()
+
+    # 如果去掉未闭合字符串后，末尾是不完整的 key（以 : 结尾，没有值）
+    stripped = s.rstrip()
+    if stripped.endswith(':'):
+        idx = stripped.rfind(',')
+        if idx >= 0:
+            s = stripped[:idx]
+
+    # 第二步：找到最后一个完整闭合的 }
+    # 记录括号深度，找 depth 从 >0 变成 =0 的最后一个 }
+    depth = 0
+    last_brace = -1
+    in_string = False
+    esc = False
+    for i, ch in enumerate(s):
+        if esc:
+            esc = False
+            continue
+        if ch == '\\':
+            esc = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch in '{[':
+            depth += 1
+        elif ch in '}]':
+            depth -= 1
+            if ch == '}' and depth >= 0:
+                last_brace = i + 1
+
+    if last_brace > 0:
+        truncated = s[:last_brace]
+        # 从 } 截断：该 } 已闭合当前对象，先补 ] 再补 }
+        brace_first = False
+    else:
+        # 没有完整对象，用最后一个逗号
+        last_comma = -1
+        in_string = False
+        esc = False
+        for i, ch in enumerate(s):
+            if esc:
+                esc = False
+                continue
+            if ch == '\\':
+                esc = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == ',':
+                last_comma = i + 1
+        if last_comma > 0:
+            truncated = s[:last_comma]
+            # 去掉尾部逗号
+            if truncated.rstrip().endswith(','):
+                truncated = truncated.rstrip()[:-1]
+            # 从逗号截断：当前对象未闭合，先补 } 再补 ]
+            brace_first = True
+        else:
+            # 没有任何截断标记——可能 JSON 极短或以 [ / { 结尾
+            # 尝试直接补全
+            stripped2 = s.rstrip()
+            if stripped2.endswith('[') or stripped2.endswith('{'):
+                open_braces2 = s.count('{') - s.count('}')
+                open_brackets2 = s.count('[') - s.count(']')
+                suffix2 = ''
+                if open_brackets2 > 0:
+                    suffix2 += ']' * open_brackets2
+                if open_braces2 > 0:
+                    suffix2 += '}' * open_braces2
+                fixed = s + suffix2
+                try:
+                    json.loads(fixed)
+                    return fixed
+                except json.JSONDecodeError:
+                    pass
+            return ""
+
+    # 计算未闭合的括号
+    open_braces = truncated.count('{') - truncated.count('}')
+    open_brackets = truncated.count('[') - truncated.count(']')
+
+    # 交替闭合：从内到外
+    # - 从 } 截断时：已有对象闭合，先 ] 再 }
+    # - 从 , 截断时：对象未闭合，先 } 再 ]
+    suffix = ''
+    if brace_first:
+        while open_braces > 0 or open_brackets > 0:
+            if open_braces > 0:
+                suffix += '}'
+                open_braces -= 1
+            if open_brackets > 0:
+                suffix += ']'
+                open_brackets -= 1
+    else:
+        while open_brackets > 0 or open_braces > 0:
+            if open_brackets > 0:
+                suffix += ']'
+                open_brackets -= 1
+            if open_braces > 0:
+                suffix += '}'
+                open_braces -= 1
+
+    return truncated + suffix
+
+
 def _try_parse_with_repair(json_str: str, label: str) -> tuple:
-    """尝试解析 JSON，如果失败在错误位置附近截断重试。"""
+    """尝试解析 JSON，如果失败尝试修复不完整的 JSON（如 LLM 输出被截断）。"""
     try:
         return json.loads(json_str), None
     except json.JSONDecodeError as e:
-        # 尝试在错误位置截断，看是否 JSON 中混入了非 JSON 文本
-        pos = e.pos
-        if pos > 0:
-            # 尝试去掉错误行之后的内容，用 } 或 ] 闭合
-            truncated = json_str[:pos]
-            # 计算未闭合的括号
-            open_braces = truncated.count('{') - truncated.count('}')
-            open_brackets = truncated.count('[') - truncated.count(']')
-            suffix = '}' * open_braces + ']' * open_brackets
+        # 先尝试截断修复
+        fixed = _fix_truncated_json(json_str)
+        if fixed:
             try:
-                return json.loads(truncated + suffix), f"{label}+truncate"
+                return json.loads(fixed), f"{label}+truncate_fix"
             except json.JSONDecodeError:
                 pass
         return None, str(e)
