@@ -15,3 +15,11 @@ Thumbs.db
 
 # Logs
 *.log
+
+# 作品管理数据库
+backend/works.db
+
+# 测试脚本
+test_works_manager.py
+test_api_works.py
+test_pr24_integration.py
