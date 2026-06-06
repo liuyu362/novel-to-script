@@ -1458,6 +1458,16 @@ async function startAnalyze() {
         return;
     }
 
+    // 判断是否是全新作品：如果文本和当前作品原文不同，清除 currentWorkId 以创建新作品
+    const currentRawText = localStorage.getItem('novelRawText') || '';
+    if (text !== currentRawText) {
+        localStorage.removeItem('currentWorkId');
+        // 清除旧的步骤数据，避免混淆
+        localStorage.removeItem('novelAnalysis');
+        localStorage.removeItem('novelScript');
+        localStorage.removeItem('novelLogic');
+    }
+
     const chapterWise = document.getElementById('chkChapterWise')?.checked ?? true;
     const btn = document.getElementById('btnAnalyze');
     btn.disabled = true;
@@ -2875,10 +2885,18 @@ async function confirmWorkModal() {
         });
         const data = await resp.json();
         if (data.code !== 0) { alert('创建失败: ' + data.message); btn.disabled = false; btn.textContent = '创建'; return; }
+        // 新作品：清除旧作品的所有数据
+        localStorage.removeItem('novelAnalysis');
+        localStorage.removeItem('novelScript');
+        localStorage.removeItem('novelLogic');
         localStorage.setItem('currentWorkId', data.data.id);
         localStorage.setItem('novelRawText', text);
         localStorage.setItem('novelTitle', title || '未命名作品');
         document.getElementById('workModalOverlay').classList.add('hidden');
+        // 填充上传页面
+        document.getElementById('novelTitle').value = title || '';
+        document.getElementById('novelText').value = text;
+        document.getElementById('resultPanel').classList.add('hidden');
         loadWorksList();
     } catch(e) {
         alert('创建失败: ' + e.message);
