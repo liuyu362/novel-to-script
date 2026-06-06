@@ -2356,7 +2356,7 @@ function renderIssueList(issues) {
         const issueClass = (iss.严重程度 === 'critical' ? 'critical-issue' :
                            iss.严重程度 === 'warning' ? 'warning-issue' : 'info-issue');
         const isFixed = issueStates[i] === 'fixed';
-        const hasFix = iss.修复操作 && iss.修复操作.查找文本;
+        const hasFix = iss.修复操作 && typeof iss.修复操作.查找文本 === 'string' && iss.修复操作.查找文本.trim().length > 0;
 
         let html = '<div class="issue-card ' + issueClass + (isFixed ? ' resolved' : '') + '">' +
             '<div class="issue-header">' +
@@ -2450,7 +2450,7 @@ function jumpToScene(idx) {
     if (!iss) { alert('检测数据已丢失，请重新检测'); return; }
 
     const scene = iss.关联场景 || '';
-    const findText = (iss.修复操作 && iss.修复操作.查找文本) ? iss.修复操作.查找文本 : scene;
+    const findText = (iss.修复操作 && typeof iss.修复操作.查找文本 === 'string' && iss.修复操作.查找文本.trim().length > 0) ? iss.修复操作.查找文本 : scene;
 
     // 导航到改编页
     navigateTo('adapt');
@@ -2504,7 +2504,7 @@ function jumpToScene(idx) {
 
 function openFixModal(idx) {
     const iss = detectIssues[idx];
-    if (!iss || !iss.修复操作) return;
+    if (!iss || !iss.修复操作 || !iss.修复操作.查找文本) return;
     pendingFixIdx = idx;
     document.getElementById('fixModalDesc').textContent = iss.描述;
     document.getElementById('fixModalFind').textContent = iss.修复操作.查找文本;
@@ -2520,7 +2520,7 @@ function closeFixModal() {
 function applyFix() {
     if (pendingFixIdx < 0) return;
     const iss = detectIssues[pendingFixIdx];
-    if (!iss || !iss.修复操作) return;
+    if (!iss || !iss.修复操作 || !iss.修复操作.查找文本) return;
 
     const findText = iss.修复操作.查找文本;
     const replaceText = iss.修复操作.替换为;

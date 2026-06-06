@@ -305,22 +305,27 @@ def check_logic(script_yaml: str, original_text: str, title: str = "") -> dict:
         fix_op = iss.get("修复操作")
         scene_name = iss.get("关联场景", "")
 
+        # 严格校验修复操作
         if fix_op and isinstance(fix_op, dict):
             find_text = fix_op.get("查找文本", "")
             replace_text = fix_op.get("替换为", "")
 
-            # 尝试修复查找文本
-            fixed_find = _try_fix_find_text(script_yaml, find_text, scene_name)
-
-            if fixed_find and fixed_find in script_yaml:
-                # 修复成功，更新查找文本
-                fix_op = {
-                    "查找文本": fixed_find,
-                    "替换为": replace_text or find_text,
-                }
-            else:
-                # 无法修复，删除修复操作
+            # 条件1：查找文本必须是非空字符串
+            if not find_text or not isinstance(find_text, str) or not find_text.strip():
                 fix_op = None
+            else:
+                # 尝试修复查找文本
+                fixed_find = _try_fix_find_text(script_yaml, find_text, scene_name)
+
+                if fixed_find and fixed_find in script_yaml:
+                    # 修复成功，更新查找文本
+                    fix_op = {
+                        "查找文本": fixed_find,
+                        "替换为": replace_text or find_text,
+                    }
+                else:
+                    # 无法修复，删除修复操作
+                    fix_op = None
 
         validated_issues.append({
             "类型": iss.get("类型", "unknown"),
