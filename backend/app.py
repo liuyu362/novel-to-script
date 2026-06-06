@@ -35,6 +35,16 @@ from backend.works_manager import (
     update_work,
     delete_work,
 )
+from backend.user_manager import (
+    init_users_table,
+    register_user,
+    login_user,
+    get_current_user,
+    parse_token,
+)
+
+# 启动时初始化 users 表
+init_users_table()
 
 app = FastAPI(
     title="Novel to Script API",
@@ -796,6 +806,45 @@ def api_delete_work(work_id: int):
         return error_response(ErrorCode.INTERNAL_ERROR, "删除失败")
 
     return success_response({"deleted_id": work_id}, message="删除成功")
+
+
+# ── 用户注册 / 登录 ────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    nickname: str = Field(..., min_length=2, max_length=20, description="昵称（2-20字）")
+    password: str = Field(..., min_length=4, max_length=32, description="密码（4-32位）")
+
+class LoginRequest(BaseModel):
+    nickname: str = Field(..., min_length=1, description="昵称")
+    password: str = Field(..., min_length=1, description="密码")
+
+
+@app.post("/api/users/register")
+def api_register(req: RegisterRequest):
+    """用户注册"""
+    try:
+        result = register_user(req.nickname, req.password)
+        return success_response({
+            "id": result["id"],
+            "nickname": result["nickname"],
+            "token": result["token"],
+        }, message="注册成功")
+    except ValueError as e:
+        return error_response(ErrorCode.INVALID_PARAMS, str(e))
+
+
+@app.post("/api/users/login")
+def api_login(req: LoginRequest):
+    """用户登录"""
+    try:
+        result = login_user(req.nickname, req.password)
+        return success_response({
+            "id": result["id"],
+            "nickname": result["nickname"],
+            "token": result["token"],
+        }, message="登录成功")
+    except ValueError as e:
+        return error_response(ErrorCode.UNAUTHORIZED, str(e))
 
 
 # ── 前端静态文件挂载 ──

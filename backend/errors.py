@@ -9,11 +9,12 @@ class ErrorCode(IntEnum):
     """错误码枚举"""
 
     # 客户端错误 4xxx
-    INVALID_PARAMS = 4001   # 参数校验失败
-    TEXT_TOO_SHORT = 4002    # 文本太短
-    TEXT_TOO_LONG = 4003     # 文本太长
-    TITLE_TOO_LONG = 4004    # 标题太长
-    NOT_FOUND      = 4005    # 资源不存在（作品/章节等）
+    INVALID_PARAMS  = 4001   # 参数校验失败
+    TEXT_TOO_SHORT  = 4002    # 文本太短
+    TEXT_TOO_LONG   = 4003    # 文本太长
+    TITLE_TOO_LONG  = 4004    # 标题太长
+    NOT_FOUND       = 4005    # 资源不存在（作品/章节等）
+    UNAUTHORIZED    = 4006    # 未登录 / token 无效
 
     # 服务端错误 5xxx
     LLM_NOT_READY = 5001     # LLM 服务未配置
