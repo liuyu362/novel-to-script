@@ -3,6 +3,12 @@ AI 小说转剧本工具 - 后端服务
 基于 FastAPI 框架
 """
 import os
+import sys
+from pathlib import Path
+
+# 确保项目根目录在 sys.path 中，支持从任意目录启动
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
