@@ -21,6 +21,7 @@ class ErrorCode(IntEnum):
     LLM_RATE_LIMIT = 5004     # LLM 速率限制（配额用尽）
     YAML_INVALID = 5005       # YAML 格式错误
     LLM_PARSE_ERROR = 5006    # LLM 输出解析失败
+    NOT_FOUND = 4005          # 资源不存在
     INTERNAL_ERROR = 5000     # 内部未知错误
 
 
@@ -35,6 +36,7 @@ ERROR_MESSAGES = {
     ErrorCode.LLM_RATE_LIMIT: "AI 服务配额用尽，请稍后重试",
     ErrorCode.YAML_INVALID: "剧本格式解析错误",
     ErrorCode.LLM_PARSE_ERROR: "AI 输出解析失败，请重试",
+    ErrorCode.NOT_FOUND: "资源不存在",
     ErrorCode.INTERNAL_ERROR: "服务内部错误，请联系管理员",
 }
 

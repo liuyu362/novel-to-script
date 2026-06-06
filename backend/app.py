@@ -28,6 +28,7 @@ from backend.dialogue_separator import extract_dialogue
 from backend.fusion_script import generate_fusion_script
 from backend.novel_analyzer import analyze_novel
 from backend.logic_checker import check_logic
+from backend.works_manager import create_work, list_works, get_work, update_work, delete_work
 
 app = FastAPI(
     title="Novel to Script API",
@@ -695,6 +696,66 @@ def check_logic_endpoint(req: LogicCheckRequest):
         "问题列表": result["问题列表"],
         "汇总": summary,
     }, message=f"检测完成：共发现 {summary['总数']} 个问题（{summary['严重']}严重/{summary['警告']}警告/{summary['提示']}提示）")
+
+
+# ── 作品管理 API ──
+
+class CreateWorkRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200, description="作品标题")
+    text: str = Field(..., min_length=50, max_length=500000, description="小说原文")
+
+
+class UpdateWorkRequest(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200, description="作品标题")
+    original_text: Optional[str] = Field(default=None, max_length=500000, description="小说原文")
+    analysis_data: Optional[dict] = Field(default=None, description="解读结果 JSON")
+    script_data: Optional[dict] = Field(default=None, description="剧本数据 JSON")
+    logic_data: Optional[dict] = Field(default=None, description="逻辑检测结果 JSON")
+    current_step: Optional[int] = Field(default=None, ge=1, le=4, description="当前步骤")
+
+
+@app.get("/api/works")
+def list_works_endpoint():
+    """获取作品列表（摘要，不含原文和结果数据）"""
+    works = list_works()
+    return success_response(works, message=f"共 {len(works)} 部作品")
+
+
+@app.post("/api/works")
+def create_work_endpoint(req: CreateWorkRequest):
+    """新建作品"""
+    work_id = create_work(req.title, req.text)
+    return success_response({"id": work_id, "title": req.title}, message=f"作品「{req.title}」创建成功")
+
+
+@app.get("/api/works/{work_id}")
+def get_work_endpoint(work_id: int):
+    """读取作品完整数据"""
+    work = get_work(work_id)
+    if work is None:
+        raise AppException(ErrorCode.NOT_FOUND)
+    return success_response(work)
+
+
+@app.put("/api/works/{work_id}")
+def update_work_endpoint(work_id: int, req: UpdateWorkRequest):
+    """更新作品（只更新传入的非 None 字段）"""
+    kwargs = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not kwargs:
+        return success_response(None, message="没有需要更新的字段")
+    ok = update_work(work_id, **kwargs)
+    if not ok:
+        raise AppException(ErrorCode.NOT_FOUND)
+    return success_response(None, message="更新成功")
+
+
+@app.delete("/api/works/{work_id}")
+def delete_work_endpoint(work_id: int):
+    """删除作品"""
+    ok = delete_work(work_id)
+    if not ok:
+        raise AppException(ErrorCode.NOT_FOUND)
+    return success_response(None, message="删除成功")
 
 
 # ── 前端静态文件挂载 ──
