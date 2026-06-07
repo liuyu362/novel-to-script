@@ -5,7 +5,7 @@ AI 辅助小说转剧本工具，将小说文本自动转换为结构化剧本�
 
 ## Demo 视频
 
-> 待上传
+https://www.bilibili.com/video/BV13MEt6jEXj/?share_source=copy_web&vd_source=be28100fd3ac8ad2b6bc3c8a42e0fcad
 
 ## 目录结构
 
