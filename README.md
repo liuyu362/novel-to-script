@@ -98,6 +98,9 @@ cd novel-to-script
 
 ```bash
 cd backend
+
+```
+```bash
 pip install -r requirements.txt
 ```
 
@@ -127,7 +130,7 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 后端启动后访问 `http://localhost:8000/docs` 可查看 API 文档。
-
+访问 `http://localhost:8000` 进入登录页面。
 ## 使用流程
 
 1. **注册/登录** → 打开 `login.html`，注册账号并登录
